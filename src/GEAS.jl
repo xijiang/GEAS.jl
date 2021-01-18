@@ -1,6 +1,7 @@
 module GEAS
 
-using LinearAlgebra, Dates, HTTP, DataFrames, Random, Distributions, Serialization
+using LinearAlgebra, Dates, HTTP, DataFrames, Random, Distributions,
+    Serialization, Statistics
 export workflow
 
 prj_dir = begin
