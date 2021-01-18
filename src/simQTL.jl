@@ -43,6 +43,6 @@ function sim_QTL(base, nqtl...)
     end
     Dict(:loci => loci,
          :effects => efft,
-         :mean => ave,
+         :mean => ave,          # population mean of traits
          :ideal => ideal)
 end

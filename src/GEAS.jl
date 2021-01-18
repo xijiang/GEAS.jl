@@ -19,6 +19,7 @@ include("workflow.jl")
 include("genotypes.jl")
 include("b_Update.jl")
 include("simQTL.jl")
+include("dropping.jl")
 
 copyright()
 

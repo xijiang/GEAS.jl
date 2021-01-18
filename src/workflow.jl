@@ -17,8 +17,11 @@ function workflow(;debug = true)
         # base = vcf2dic(joinpath(dat_dir, "run/c.vcf.gz"))
         # serialize(joinpath(dat_dir, "run/ns.ser"), base)
         base = deserize(joinpath(dat_dir, "run/ns.ser")) # to save time
-        nqtl = 500
+        nqtl, nprt, noff = 500, size(base[:hap])[2] ÷ 2, 100
         QTL = sim_QTL(base, nqtl)
+        ped = random_mate(nprt, noff)
+        r = haldane(base[:pos])
+        goff = grop(base[:pos], base[:hap], ped, r)
     else
         @info "Running in release mode"
     end
