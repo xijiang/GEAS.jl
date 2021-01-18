@@ -1,17 +1,5 @@
 import GZip
 """
-    function macs()
----
-Simulation of genotypes with macs.
-"""
-function macs(;nchr = 26, nid = 300, ns=600)
-    
-    @info join(["Simulation with ms",
-                "1",
-                ], "\n")
-end
-
-"""
     function gt600()
 ---
 1. Phase the genotypes with beagle
@@ -72,11 +60,48 @@ function gt600()
     run(`java -jar $beagle gt=$rst/b.vcf.gz ne=$Nₑ out=$rst/c`)
 end
 
+"""
+    function vcf2dic(vcf)
+---
+Read chromosome and haplotypes from a `vcf` file of **gzip** format.
+Returns a Dictionary: pos=>[chr, bp], hap=>hap of chr8[][].
+Each column of hap is a haplotype across genome.
+"""
+function vcf2dic(vcf)
+    GZip.open(vcf, "r") do io
+        # skip vcf header and determine N_ID
+        nid = 0
+        for line in eachline(io)
+            if line[2] != '#'
+                nid = length(split(line)) - 9
+                break
+            end
+        end
+        pos = Int[]
+        hap = Int8[]
+        for line in eachline(io)
+            f = split(line)
+            append!(pos, parse.(Int, f[1:2]))
+            append!(hap, parse.(Int8, collect(join(f[10:end], ' ')[1:2:end])))
+        end
+        Dict(:pos => reshape(pos, (2, :))', :hap => reshape(hap, (nid*2, :))')
+    end
+end
 
 """
-    function simBase()
+    function macs()
 ---
 Simulate a base population with `macs`.
 """
-function simBase()
+function macs()
+    ## Let the time and the population size at the time are
+    #t = [50., 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000,
+    #     4000, 5000, 6000, 7000, 8000, 9000, 10000, 20000, 40000, 60000,
+    #     80000, 100000, 200000, 400000, 600000, 800000, 1000000]
+    ## this is suppose to give an Nₑ = 100
+    #mut = 1e-8
+    #nid = 600
+    #chr = 1e8
+    #length(t)/sum(1. ./ t)
+    @warn "To be written"
 end

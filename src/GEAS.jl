@@ -1,6 +1,6 @@
 module GEAS
 
-using LinearAlgebra, Dates, HTTP, DataFrames
+using LinearAlgebra, Dates, HTTP, DataFrames, Random, Distributions, Serialization
 export workflow
 
 prj_dir = begin
@@ -17,6 +17,7 @@ beagle  = joinpath(bin_dir, "beagle.jar")
 include("workflow.jl")
 include("genotypes.jl")
 include("b_Update.jl")
+include("simQTL.jl")
 
 copyright()
 
