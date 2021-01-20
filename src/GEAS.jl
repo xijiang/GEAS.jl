@@ -20,6 +20,8 @@ include("genotypes.jl")
 include("b_Update.jl")
 include("simQTL.jl")
 include("dropping.jl")
+include("structs.jl")
+include("phenotypes.jl")
 
 copyright()
 

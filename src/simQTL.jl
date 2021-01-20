@@ -20,29 +20,20 @@ function sim_QTL(base, nqtl...)
     ntrt = length(nqtl)
     nid  = size(GT)[2] ÷ 2
 
-    loci  = Any[]
-    efft  = Any[]
-    ave   = Float64[]
-    ideal = Float64[]
+    qinfo = QTL[]
     for n in nqtl
-        lc = sort(randperm(tsnp)[1:n])
-        push!(loci, lc)         # sampled locations
+        loci = sort(randperm(tsnp)[1:n])
         
         q = zeros(Int8, n, nid) # QTL genotypes
         for id in 1:nid
-            q[:, id] = base[:hap][lc, id*2 - 1] + base[:hap][lc, id*2]
+            q[:, id] = base[:hap][loci, id*2 - 1] + base[:hap][loci, id*2]
         end
         e = randn(n)
         v = var(q'e)
         e ./= sqrt(v)
-        push!(efft, e)
         m = mean(q'e)
-        push!(ave, m)
-        t = sum(e[e.>0]) - m
-        push!(ideal, t)
+        t = 2sum(e[e.>0]) - m
+        push!(qinfo, QTL(loci, e, m, t))
     end
-    Dict(:loci => loci,
-         :effects => efft,
-         :mean => ave,          # population mean of traits
-         :ideal => ideal)
+    qinfo
 end

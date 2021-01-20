@@ -89,7 +89,7 @@ end
 
 
 """
-    binUpdate()
+    Update()
 ---
 Every time one starts this package, the package will automatically check if `plink` and `beagle.jar` exist.
 If not, the package will download the latest version of these two files.

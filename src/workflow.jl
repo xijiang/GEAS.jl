@@ -3,25 +3,32 @@
 ---
 This records the framework of the package.
 """
-function workflow(;debug = true)
-    @info "run function `binUpdate()` to update binaries if necessary"
-    # binUpdate()
+function workflow(; debug = true)
+    # Par = Parameter(500, 600, 100, .5, .5, .5)
+    prd = Trait(500, .5)
+    dsr = Trait(500, .5)
+    nbs, nsb = 600, 100         # base population size, full sibship size
+    @info "run function `Update()` to update binaries if necessary"
     if debug
         @info "Running in debug mode"
-        @info join(["STEP I: Preparing data",
+        @info join(["",
+                    "STEP I: Preparing data",
                     "  1. some real data with ID masked",
                     "  2. simulation data",
                     "  ToDo: simulation of base"], "\n")
         @info "Phase the genotypes of 600 ID with beagle"
+        ############################################################
+        # Below are a few steps to organize some real data from Nofima
         # @time gt600()           # -> c.vcf.gz
         # base = vcf2dic(joinpath(dat_dir, "run/c.vcf.gz"))
         # serialize(joinpath(dat_dir, "run/ns.ser"), base)
-        base = deserize(joinpath(dat_dir, "run/ns.ser")) # to save time
-        nqtl, nprt, noff = 500, size(base[:hap])[2] ÷ 2, 100
-        QTL = sim_QTL(base, nqtl)
-        ped = random_mate(nprt, noff)
+        ############################################################
+        # read back real data
+        base = deserialize(joinpath(dat_dir, "run/ns.ser")) # to save time
+        Qinf = sim_QTL(base, prd.nqtl, dsr.nqtl)
+        ped = random_mate(nbs, nsb)
         r = haldane(base[:pos])
-        goff = grop(base[:pos], base[:hap], ped, r)
+        goff = gdrop(base[:pos], base[:hap], ped, r)
     else
         @info "Running in release mode"
     end
