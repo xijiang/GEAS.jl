@@ -28,7 +28,8 @@ function workflow(; debug = true)
         Qinf = sim_QTL(base, prd.nqtl, dsr.nqtl)
         ped = random_mate(nbs, nsb)
         r = haldane(base[:pos])
-        goff = gdrop(base[:pos], base[:hap], ped, r)
+        goff = gdrop(base[:hap], ped, r)
+        TBV(goff, Qinf[1])
     else
         @info "Running in release mode"
     end

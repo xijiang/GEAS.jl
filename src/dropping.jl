@@ -50,13 +50,16 @@ end
     function gdrop(base, ped)
 ---
 Drop genotypes of `base`, through `ped`.
+
+ToDo:
+Needs optimization
 """
-function gdrop(pos, snp, ped, r)
+function gdrop(snp, ped, r)
     noff = size(ped)[1]
     nsnp = size(snp)[1]
     osnp = Array{Int8, 2}(undef, nsnp, 2noff)
     i = 1
-    for prt in eachrow(ped)
+    @inbounds for prt in eachrow(ped)
         for p in prt
             hap = view(snp, :, 2p-1:2p)
             off = view(osnp, :, i)
@@ -72,3 +75,16 @@ function gdrop(pos, snp, ped, r)
     osnp     
 end
 
+"""
+Seems OK
+"""
+function test_drop()
+    snp = rand(0:1, 10, 8)
+    ped = [1 2
+           3 4
+           ]
+    r = ones(10).* 0.1
+    r[1] = .5
+    off = gdrop(snp, ped, r)
+    [snp off]
+end
