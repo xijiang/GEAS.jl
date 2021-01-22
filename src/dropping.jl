@@ -59,14 +59,15 @@ function gdrop(snp, ped, r)
     nsnp = size(snp)[1]
     osnp = Array{Int8, 2}(undef, nsnp, 2noff)
     i = 1
+    sample = zeros(nsnp)
     @inbounds for prt in eachrow(ped)
-        for p in prt
+        @inbounds for p in prt
             hap = view(snp, :, 2p-1:2p)
             off = view(osnp, :, i)
             k   = 1
-            spl = rand(nsnp)
+            rand!(sample)
             @inbounds for j in 1:nsnp
-                spl[j] < r[j] && (k = 3 - k)
+                sample[j] < r[j] && (k = 3 - k)
                 off[j] = hap[j, k]
             end
             i += 1

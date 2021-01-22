@@ -22,7 +22,7 @@ function TBV(snp, qtl)
     tmp = DataFrame(bv = bv, id = 1:nid)
     sort!(tmp, :bv, rev=true)
     rank = tmp.id               # rank offspring in BV order, high->low
-    for s in 100:100:600
+    @inbounds for s in 50:50:600
         x = g[:, rank[1:s]]     # QTL genotypes of the selected ones
         b = bv[rank[1:s]]       # BV of the selected ones
         q = sum(x, dims=2)      # frequency: 0 <--> 2s
@@ -36,7 +36,7 @@ function TBV(snp, qtl)
                     t -= e[i]
                 end
                 f += 1
-            elseif q[i] == 2nid
+            elseif q[i] == 2s
                 if e[i] < 0
                     t += e[i]
                 end
