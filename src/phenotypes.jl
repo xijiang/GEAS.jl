@@ -14,10 +14,23 @@ function breeding_value(snp, qtl)
 end
 
 """
+    function phenotype(bv, h²)
+---
+Given breeding values `bv` and `h²`, and assuming `σₐ²` = 1,
+this function returns a phenotype array.
+"""
+function phenotype(bv, h²)
+    σₑ = √(1/h² - 1)            # σₐ² = 1
+    ni = length(bv)             # number of individuals
+    er = randn(ni) .* σₑ
+    return bv + er
+end
+
+"""
     function phenotype(snp, qtl, h²)
 ---
 This function returns phenotypes of a trait.
-σₑ² is determined assuming σₐ²=1 in the base population.
+`σₑ²` is determined assuming `σₐ²` = 1 in the base population.
 """
 function phenotype(snp, qtl, h²)
     σₑ = √(1/h² - 1)            # σₐ² = 1
@@ -33,10 +46,12 @@ end
 This function returns phenotypes of a binary trait.
 σₑ² is determined assuming σₐ²=1 in the base population.
 This result can also serve as a challenge result.
+Assuming the liability is for resisitance.
+ID with a `phenotype < qtl.mean + threshold` are incident.
+That is an ID is affected and phenotype is 1.
 """
 function phenotype(snp, qtl, h², threshold)
     ph = phenotype(snp, qtl, h²)
-    println(mean(ph), ' ', var(ph))
     ni = length(ph)
     bn = zeros(Int8, ni)
     th = qtl.mean + threshold

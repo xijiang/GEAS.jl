@@ -4,30 +4,34 @@
 This records the framework of the package.
 It can also serve as a template pipeline.
 """
-function workflow(; debug = true)
-    # Par = Parameter(500, 600, 100, .5, .5, .5)
-    prd = Trait(500, .5)        # production trait
-    dsr = Trait(500, .5)        # disease resisitance trait
-    nbs, nsb = 600, 100         # base population size, full sibship size
-    @info "run function `Update()` to update binaries if necessary"
+function workflow(par; debug = true)
+    #par = Breeding(375, 2, 10, 100, [500, 500], [.5, .5], 40, 0.)
     if debug
-        @info "Running in debug mode"
-        @info join(["",
-                    "STEP I: Preparing data",
-                    "  1. some real data with ID masked",
-                    "  2. simulation data",
-                    "  ToDo: simulation of base"], "\n")
-        @info "Phase the genotypes of 600 ID with beagle"
+        @info join(["Debug mode",
+                    "      ==========",
+                    "",
+                    "-- run `GEAS.Update()` to update binaries if necessary"],
+                   "\n")
         # read back real data
         base = deserialize(joinpath(dat_dir, "run/ns.ser")) # to save time
-        qtls = sim_QTL(base, prd.nqtl, dsr.nqtl)
-        ped  = random_mate(nbs, nsb)
-        r    = haldane(base[:pos])
-        goff = gdrop(base[:hap], ped, r)
 
-        @info "Start to breeding"
+        println("\n")
+        @info join(["",
+                    "STEP II: The breeding program",
+                    "-----------------------------"],
+                   "\n")
+        breeding_program(base, par)
     else
-        @info "Running in release mode"
+        @info join(["Running in release mode",
+                    "STEP I: Preparing base",
+                    "  1. base population",
+                    "     - some real Nofima data",
+                    "     - simulate with `macs`",
+                    "  2. If real data",
+                    "     - remove duplicates",
+                    "     - phase with `beagle.jar`",
+                    "  3. serialization to ease later load"],
+                   "\n")
         @time gt600()           # -> c.vcf.gz
         @time base = vcf2dic(joinpath(dat_dir, "run/c.vcf.gz"))
         @time serialize(joinpath(dat_dir, "run/ns.ser"), base)
