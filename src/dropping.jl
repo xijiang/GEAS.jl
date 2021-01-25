@@ -8,7 +8,7 @@ The few odds of `nprt` might be ommitted.
 A warning message will be given if this happens.
 The `ratio` here is female:male, which should always be an integer.
 """
-function random_mate(nprt, noff; ratio::Int = 1)
+function random_mate(nprt, noff; ratio::Int = 2)
     np = Int(nprt ÷ (1 + ratio)) # number of pa
     nm = Int(floor(np * ratio))
     omt = nprt - np - nm

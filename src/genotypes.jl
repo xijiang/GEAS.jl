@@ -11,16 +11,21 @@ function gt600()
     fra = joinpath(dat_dir, "real/nofima/for_CMSEdit")
     Nₑ  = 100
     
-    @info  "Phasing with beagle.jar"
-    
+    @info join(["",
+                "Remove SNP of duplicates and unknown postions",
+                "  - See data/real/nofima/plink.sh"], "\n")
+
+    @info "Phasing with beagle.jar"
+
+    #=
     # convert to VCF for beagle to impute and phase
-    run(`$plink --bfile $fra --chr-set 30 --recode vcf-iid bgz --out $rst/a`)
     run(pipeline(`zcat $rst/a.vcf.gz`,
                  `grep -v \#`,
                  `gawk '{print $1, $2}'`,
                  "$rst/bp"))
     # make positions unique
-    # - if two SNP have same chr and bp, make the later bp += 1000
+    # - if two SNP have same chr and bp, make the later bp += 55000
+    #   - as the average adjacent SNP distance is 58242bp
     positions = begin
         chr = Int[]
         bp = Int[]
@@ -34,11 +39,12 @@ function gt600()
     for df in groupby(positions, :chr)
         for i in 2:length(df.bp)
             if df.bp[i] == df.bp[i-1]
-                df.bp[i:end] .+= 1000
+                df.bp[i:end] .+= 55000
             end
         end
     end
-
+    =#
+    
     # make alleles to C/T, and replace positions, so that beagle can phase them
     GZip.open("$rst/b.vcf.gz", "w") do io
         i = 0
@@ -48,7 +54,6 @@ function gt600()
             else
                 i += 1
                 t  = split(line)
-                t[2] = string(positions.bp[i])
                 t[4] = "T"
                 t[5] = "C"
                 write(io, join(t, "\t"), "\n")

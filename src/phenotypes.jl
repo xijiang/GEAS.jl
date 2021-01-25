@@ -1,12 +1,52 @@
 """
-    function phenotype(gt, QTL, h²)
----
-This function returns phenotypes a trait.
+Given SNP genotypes `snp`, and QTL loci and effects in `qtl`, this function return
+true breeding values of each individual.
 """
-function phenotype(gt, qtl, h²)
-    @warn "under construction"
+function breeding_value(snp, qtl)
+    l = qtl.pos
+    e = qtl.effect             # shorthands
+    n = size(snp)[2] ÷ 2       # number of individuals
+    g = zeros(Int8, length(l), n)      # QTL genotypes (012)
+    @inbounds for i in 1:n
+        g[:, i] = snp[l, 2i-1] + snp[l, 2i]
+    end
+    return g'e
 end
 
+"""
+    function phenotype(snp, qtl, h²)
+---
+This function returns phenotypes of a trait.
+σₑ² is determined assuming σₐ²=1 in the base population.
+"""
+function phenotype(snp, qtl, h²)
+    σₑ = √(1/h² - 1)            # σₐ² = 1
+    bv = breeding_value(snp, qtl)
+    ni = size(snp)[2] ÷ 2       # number of individuals
+    er = randn(ni) .* σₑ
+    return bv + er
+end
+
+"""
+    function phenotype(snp, qtl, h², threshold)
+---
+This function returns phenotypes of a binary trait.
+σₑ² is determined assuming σₐ²=1 in the base population.
+This result can also serve as a challenge result.
+"""
+function phenotype(snp, qtl, h², threshold)
+    ph = phenotype(snp, qtl, h²)
+    println(mean(ph), ' ', var(ph))
+    ni = length(ph)
+    bn = zeros(Int8, ni)
+    th = qtl.mean + threshold
+    @inbounds for i in 1:ni
+        bn[i] = (ph[i] < threshold) ? 1 : 0
+    end
+    return bn
+end
+
+#=
 function TBV(snp, qtl)
     nid = size(snp)[2] ÷ 2
     pos = qtl.pos
@@ -46,3 +86,4 @@ function TBV(snp, qtl)
         println("$m, $v, $t, $f")
     end
 end
+=#
