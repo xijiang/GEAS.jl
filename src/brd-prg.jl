@@ -93,7 +93,8 @@ function breeding_program(base, par)
         i₁, i₂ = test_sets(nf, ss, nc)
         evaluate_n_select(goff, i₁, i₂, prd, bin, par.nn, par.fm)
     end
-    
+
+    nf = par.nn ÷ (1 + par.fm) * par.fm
     ix₁, ix₂ = test_sets(nf, par.ss, par.nc)
     for ig in 2:par.ng
         println()
@@ -102,6 +103,7 @@ function breeding_program(base, par)
                    "\n")
         goff, prd, bin = breed_n_measure(snp, par, qtl, r)
         snp = evaluate_n_select(goff, ix₁, ix₂, prd, bin, par.nn, par.fm)
+        # gene editing goes here?
         @warn "record something"
     end
 end
