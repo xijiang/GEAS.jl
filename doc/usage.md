@@ -30,7 +30,9 @@ activate .
 instantiate # for first the time to install packages if not installed.
 <backspace> # to REPL
 using GEAS
-workflow()
+?GEAS.Breeding # to see the parameters requied for breeding simulation.
+par = GEAS.Breeding(375, 2, 10, 100, [500, 500], [.5, .5], 40, 0.)
+workflow(par)			# the only exported function of GEAS
 ```
 
 ## To develop the package

@@ -35,7 +35,7 @@ This function returns phenotypes of a trait.
 function phenotype(snp, qtl, h²)
     σₑ = √(1/h² - 1)            # σₐ² = 1
     bv = breeding_value(snp, qtl)
-    ni = size(snp)[2] ÷ 2       # number of individuals
+    ni = size(bv)
     er = randn(ni) .* σₑ
     return bv + er
 end
