@@ -30,19 +30,22 @@ end
 ---
 """
 function merge_previous_data(cur, n)
-    g₁ = cur.g₁
-    g₂ = cur.g₂
-    p₁ = cur.p₁
-    p₂ = cur.p₂
-    for i in 1:n-1
-        tmp = deserialize(joinpath(dat_dir, "run/$i.ser"))
-        g₁ = [g₁  tmp.g₁]       # space for hcat
-        g₂ = [g₂  tmp.g₂]
-        p₁ = [p₁; tmp.p₁]       # ; for vcat
-        p₂ = [p₂; tmp.p₂]
-    end
-    # ommit p₃, which not needed for evaluation.
-    Dict(:g₁ => g₁, :g₂ => g₂, :p₁ => p₁, :p₂ => p₂)
+    cur
+    #g₁ = cur.g₁
+    #g₂ = cur.g₂
+    #p₁ = cur.p₁
+    #p₂ = cur.p₂
+    #p₃ = cur.p₃
+    #for i in 1:n-1
+    #    tmp = deserialize(joinpath(dat_dir, "run/$i.ser"))
+    #    g₁ = [g₁  tmp.g₁]       # space for hcat
+    #    g₂ = [g₂  tmp.g₂]
+    #    p₁ = [p₁; tmp.p₁]       # ; for vcat
+    #    p₂ = [p₂; tmp.p₂]
+    #    p₃ = [p₃; tmp.p₃]
+    #end
+    ## ommit p₃, which not needed for evaluation.
+    #Dict(:g₁ => g₁, :g₂ => g₂, :p₁ => p₁, :p₂ => p₂, :p3 => p₃)
 end
 
 """
@@ -82,8 +85,8 @@ function generation_one(base, par, qtl)
     nc  = par.nDam * par.nC7e ÷ nd # number challenged
 
     # breed and measure
-    x₁, x₂ = test_sets(nd, ns, nc)
-    obs = begin
+    obs, nCur = begin
+        x₁, x₂ = test_sets(nd, ns, nc)
         ped = random_mate(n₀ - nd, nd, ns)
         nxt = gdrop(base[:hap], ped, base[:r])
         p₁  = phenotype(nxt, qtl[1], par.h²[1])
@@ -92,12 +95,12 @@ function generation_one(base, par, qtl)
              :g₂ => nxt[:, x₂],
              :p₁ => p₁[x₁],
              :p₂ => p₂[x₂],
-             :p₃ => ped[x₁])
+             :p₃ => ped[x₁]), length(x₁)
     end
     serialize(joinpath(dat_dir, "run/1.ser"), obs)
     
     # select nuclear of next generation
-    evaluate_n_select((; obs...), length(x₁), par.nSire, par.nDam)
+    evaluate_n_select((; obs...), nCur, par.nSire, par.nDam)
 end
 
 """
@@ -109,7 +112,7 @@ function breeding_program(base, par)
     # Parameters for this simulation
     qtl = sim_QTL(base, par.nQTL...)
     println()
-    
+
     start = 1
     snp = begin                 # genotypes for nuclear population
         if size(base[:hap])[2] ÷ 2 ≠ par.nSire + par.nDam
@@ -136,9 +139,7 @@ function breeding_program(base, par)
                  :p₃ => ped[x₁])
         end
         serialize(joinpath(dat_dir, "run/$ig.ser"), obs)
-        obs = merge_previous_data(obs, ig)
-        # - serialize to disk
-        # - merge to previous one(s) and to use for eval.
+        #obs = merge_previous_data((; obs...), ig)
         snp = evaluate_n_select((; obs...), length(x₁), par.nSire, par.nDam)
     end
 end

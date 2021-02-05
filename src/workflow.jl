@@ -13,11 +13,12 @@ function workflow(debug = true)
                       :nDam => 250, # male:female = 1:2
                       :nSib => 100,
                       :nC7e => 40, # number of sib to be challenged
-                      :nG8n => 5,  # number of generations
+                      :nG8n => 3,  # number of generations
                       :nQTL => [1000, 1000],
                       :h²   => [.5, .5],
                       :t7d  => 0., # threshold for the binary trait
                       )
+    
     par = (; Parameters...)     # named tuple.  contents as above
     
     if debug
