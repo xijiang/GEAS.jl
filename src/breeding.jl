@@ -26,29 +26,6 @@ function test_sets(nfam, nsib, nclg)
 end
 
 """
-    function merge_previous_data(cur, n)
----
-"""
-function merge_previous_data(cur, n)
-    cur
-    #g₁ = cur.g₁
-    #g₂ = cur.g₂
-    #p₁ = cur.p₁
-    #p₂ = cur.p₂
-    #p₃ = cur.p₃
-    #for i in 1:n-1
-    #    tmp = deserialize(joinpath(dat_dir, "run/$i.ser"))
-    #    g₁ = [g₁  tmp.g₁]       # space for hcat
-    #    g₂ = [g₂  tmp.g₂]
-    #    p₁ = [p₁; tmp.p₁]       # ; for vcat
-    #    p₂ = [p₂; tmp.p₂]
-    #    p₃ = [p₃; tmp.p₃]
-    #end
-    ## ommit p₃, which not needed for evaluation.
-    #Dict(:g₁ => g₁, :g₂ => g₂, :p₁ => p₁, :p₂ => p₂, :p3 => p₃)
-end
-
-"""
     function evaluate_n_select(obs, nSire, nDam)
 ---
 Given observation `obs`, return genotypes of `nSire + nDam`.
@@ -91,13 +68,14 @@ function generation_one(base, par, qtl)
         nxt = gdrop(base[:hap], ped, base[:r])
         p₁  = phenotype(nxt, qtl[1], par.h²[1])
         p₂  = phenotype(nxt, qtl[2], par.h²[2], par.t7d)
-        Dict(:g₁ => nxt[:, x₁],
-             :g₂ => nxt[:, x₂],
-             :p₁ => p₁[x₁],
-             :p₂ => p₂[x₂],
-             :p₃ => ped[x₁]), length(x₁)
+        tmp = Dict(:g₁ => nxt[:, x₁],
+                   :g₂ => nxt[:, x₂],
+                   :p₁ => p₁[x₁],
+                   :p₂ => p₂[x₂],
+                   :p₃ => ped[x₁, :])
+        tmp, length(x₁)
     end
-    serialize(joinpath(dat_dir, "run/1.ser"), obs)
+    serialize(joinpath(dat_dir, "run/pre.ser"), obs)
     
     # select nuclear of next generation
     evaluate_n_select((; obs...), nCur, par.nSire, par.nDam)
@@ -111,7 +89,7 @@ Do the breeding with the given parameter `par`.
 function breeding_program(base, par)
     # Parameters for this simulation
     qtl = sim_QTL(base, par.nQTL...)
-    println()
+    println()                   # breeding cycles begin below
 
     start = 1
     snp = begin                 # genotypes for nuclear population
@@ -127,7 +105,7 @@ function breeding_program(base, par)
     x₁, x₂ = test_sets(par.nDam, par.nSib, par.nC7e)
     for ig in start:par.nG8n    # breeding and seletion cycles
         @info "F-$ig"
-        obs = begin
+        cur = begin
             ped = random_mate(par.nSire, par.nDam, par.nSib)
             nxt = gdrop(snp, ped, base[:r])
             p₁ = phenotype(nxt, qtl[1], par.h²[1])
@@ -136,10 +114,21 @@ function breeding_program(base, par)
                  :g₂ => nxt[:, x₂],
                  :p₁ => p₁[x₁],
                  :p₂ => p₂[x₂],
-                 :p₃ => ped[x₁])
+                 :p₃ => ped[x₁, :])
         end
-        serialize(joinpath(dat_dir, "run/$ig.ser"), obs)
-        #obs = merge_previous_data((; obs...), ig)
+        obs = begin
+            if ig > 1
+                tmp = deserialize(joinpath(dat_dir, "run/pre.ser"))
+                Dict(:g₁ => [cur[:g₁]  tmp[:g₁]],
+                     :g₂ => [cur[:g₂]  tmp[:g₂]],
+                     :p₁ => [cur[:p₁]; tmp[:p₁]],
+                     :p₂ => [cur[:p₂]; tmp[:p₂]],
+                     :p₃ => [cur[:p₃]; tmp[:p₃]])
+            else
+                cur
+            end
+        end
+        serialize(joinpath(dat_dir, "run/pre.ser"), obs)
         snp = evaluate_n_select((; obs...), length(x₁), par.nSire, par.nDam)
     end
 end
