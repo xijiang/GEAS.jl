@@ -16,34 +16,6 @@ function gt600()
                 "  - See data/real/nofima/plink.sh"], "\n")
 
     @info "Phasing with beagle.jar"
-
-    #=
-    # convert to VCF for beagle to impute and phase
-    run(pipeline(`zcat $rst/a.vcf.gz`,
-                 `grep -v \#`,
-                 `gawk '{print $1, $2}'`,
-                 "$rst/bp"))
-    # make positions unique
-    # - if two SNP have same chr and bp, make the later bp += 55000
-    #   - as the average adjacent SNP distance is 58242bp
-    positions = begin
-        chr = Int[]
-        bp = Int[]
-        for line in eachline("$rst/bp")
-            c, b = parse.(Int, split(line))
-            push!(chr, c)
-            push!(bp, b)
-        end
-        DataFrame(chr=chr, bp=bp)
-    end
-    for df in groupby(positions, :chr)
-        for i in 2:length(df.bp)
-            if df.bp[i] == df.bp[i-1]
-                df.bp[i:end] .+= 55000
-            end
-        end
-    end
-    =#
     
     # make alleles to C/T, and replace positions, so that beagle can phase them
     GZip.open("$rst/b.vcf.gz", "w") do io
@@ -89,24 +61,63 @@ function vcf2dic(vcf)
             append!(pos, parse.(Int, f[1:2]))
             append!(hap, parse.(Int8, collect(join(f[10:end], ' ')[1:2:end])))
         end
-        Dict(:pos => reshape(pos, (2, :))', :hap => reshape(hap, (nid*2, :))')
+        pos = reshape(pos, (2, :))'
+        r   = haldane(pos)
+        Dict(:pos => pos,
+             :r => r,
+             :hap => reshape(hap, (nid*2, :))')
     end
 end
 
 """
-    function macs()
+    function sim_base(nChr)
 ---
-Simulate a base population with `macs`.
+This procedure were copied from _Jenko J et. al_ 2015.
+The command included will simulate a population of N_e = 100.
+The history is to mimic cattle history.
+I may think some other history structure later.
+
+- mt: mutation rate per site per 4N generations
+- rc: recombination rate per site per 4N generations
 """
-function macs()
-    ## Let the time and the population size at the time are
-    #t = [50., 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000,
-    #     4000, 5000, 6000, 7000, 8000, 9000, 10000, 20000, 40000, 60000,
-    #     80000, 100000, 200000, 400000, 600000, 800000, 1000000]
-    ## this is suppose to give an Nₑ = 100
-    #mut = 1e-8
-    #nid = 600
-    #chr = 1e8
-    #length(t)/sum(1. ./ t)
-    @warn "To be written"
+function sim_base(nID, nChr, nSNP; nBP = 100_000_000, mt=0.00001, rc=0.000004)
+    pcmd = pipeline(`$bin_dir/macs $nID $nBP -t $mt -r $rc
+				-eN    0.03   1.75
+				-eN    0.06   2.00
+				-eN    0.13   3.50
+				-eN    0.25   5.00
+				-eN    0.50   7.00
+				-eN    0.75   8.20
+				-eN    1.00   8.50
+				-eN    1.25   9.00
+				-eN    1.50  10.00
+				-eN    1.75  11.00
+				-eN    2.00  12.75
+				-eN    2.25  13.00
+				-eN    2.50  12.00
+				-eN    5.00  20.00
+				-eN    7.50  25.00
+				-eN   10.00  30.00
+				-eN   12.50  32.00
+				-eN   15.00  35.00
+				-eN   17.50  38.00
+				-eN   20.00  40.00
+				-eN   22.50  42.00
+				-eN   25.00  45.00
+				-eN   50.00  54.56
+				-eN  100.00  73.67
+				-eN  150.00  92.78
+				-eN  200.00 111.90
+				-eN  250.00 131.01
+				-eN  500.00 226.58
+				-eN 1000.00 417.72
+				-eN 1500.00 608.86
+				-eN 2000.00 800.00`,
+                    `$bin_dir/msformatter`,
+                    "$dat_dir/run/hap.txt")
+    for i in 1:nChr
+    #    println("Simulate chromosome $i")
+        run(pipeline(pcmd, stderr="/dev/null")) # supress stderr message.
+        # sample SNP & write.
+    end
 end

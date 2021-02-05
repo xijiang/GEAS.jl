@@ -1,5 +1,5 @@
 """
-    copyright()
+    function copyright()
 ---
 Show copyright information.
 """
@@ -35,7 +35,7 @@ function isLaterBeagle(a, b)
 end
 
 """
-    update_beagle()
+    function update_beagle()
 ---
 Return the latest beagle URL
 """
@@ -68,23 +68,43 @@ function update_beagle()
 end
 
 """
-    update_plink()
+    function update_plink()
 ---
 Return URL of the latest plink version 1 for Linux x86_64.
 """
 function update_plink()
     @info "Updating plink to the latest"
     plinkURL = "http://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_latest.zip"
+    cd(joinpath(dat_dir, "test"))
+    download(plinkURL, "plink.zip")
+    run(`unzip -f plink.zip`)
+    cp("plink", joinpath(bin_dir, "plink"), force = true)
+    cd(prj_dir)
+end
 
-    local_plink_z = joinpath(bin_dir, "plink.zip")
-    isfile(local_plink_z) && rm(local_plink_z, force = true)
-    download(plinkURL, local_plink_z)
 
-    local_plink = joinpath(bin_dir, "plink")
-    isfile(local_plink) && rm(local_plink, force = true)
-    isfile("plink") && rm("plink", force = true)
-    run(`unzip $local_plink_z plink`)
-    mv("plink", "bin/plink")
+"""
+    function update_macs()
+---
+Clone and compile marcs into `bin`.
+"""
+function update_macs()
+    @info "Updating macs"
+    marcs = "https://github.com/gchen98/macs"
+    cd(dat_dir)
+    if isdir("macs")
+        cd("macs")
+        run(`git pull --no-rebase`)
+        cd("..")
+    else
+        run(`git clone $marcs`)
+    end
+    cd("macs")
+    run(`g++ -o macs -O3 -Wall simulator.cpp algorithm.cpp datastructures.cpp`)
+    run(`g++ -o msformatter -O3 -Wall msformat.cpp`)
+    cp("macs", joinpath(bin_dir, "macs"), force = true)
+    cp("msformatter", joinpath(bin_dir, "msformatter"), force = true)
+    cd(prj_dir)
 end
 
 

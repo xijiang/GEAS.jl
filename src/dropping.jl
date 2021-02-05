@@ -1,23 +1,15 @@
 """
-    function random_mate(nprt, noff; ratio::Int = 1)
+    function random_mate(nsire, ndam, nsib)
 ---
-Assume the first half of the ID are males, and the second half are females,
-this function randomize parent pairs.
-Each pair will have `noff` offspring.
-The few odds of `nprt` might be ommitted.
-A warning message will be given if this happens.
-The `ratio` here is female:male, which should always be an integer.
+Random mate `nsire` with `ndam`, each dam will have `nsib`.
+Assuming the first `nsire` are sires.
+The rest are dams.
 """
-function random_mate(nprt, noff; ratio::Int = 2)
-    np = Int(nprt ÷ (1 + ratio)) # number of pa
-    nm = Int(floor(np * ratio))
-    omt = nprt - np - nm
-    omt > 0 && @warn "The last $omt ID will ommitted"
-    pa = repeat(shuffle(1:np),
-                inner = ratio * noff)
-    ma = repeat(shuffle(np+1:np+nm),
-                inner = noff)
-    [pa ma]
+function random_mate(nsire, ndam, nsib)
+    r = Int(ceil(ndam/nsire))
+    pa = repeat(repeat(shuffle(1:nsire), r), inner=nsib)
+    ma = repeat(1:ndam, inner = nsib) .+ nsire
+    [pa[1:length(ma)] ma]
 end
     
 """

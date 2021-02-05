@@ -22,7 +22,7 @@ include("simQTL.jl")
 include("dropping.jl")
 include("structs.jl")
 include("phenotypes.jl")
-include("brd-prg.jl")
+include("breeding.jl")
 include("estimation.jl")
 
 copyright()

@@ -56,7 +56,7 @@ function phenotype(snp, qtl, h², threshold)
     bn = zeros(Int8, ni)
     th = qtl.mean + threshold
     @inbounds for i in 1:ni
-        bn[i] = (ph[i] < threshold) ? 1 : 0
+        bn[i] = (ph[i] < th) ? 1 : 0
     end
     return bn
 end
