@@ -4,11 +4,28 @@
 Random mate `nsire` with `ndam`, each dam will have `nsib`.
 Assuming the first `nsire` are sires.
 The rest are dams.
+This is for generation one.
+And can be replaced by call `random_mate(shuffle(1:nid), nsire, ndam, nsib)`.
 """
 function random_mate(nsire, ndam, nsib)
-    r = Int(ceil(ndam/nsire))
+    r  = Int(ceil(ndam/nsire))
     pa = repeat(repeat(shuffle(1:nsire), r), inner=nsib)
     ma = repeat(1:ndam, inner = nsib) .+ nsire
+    [pa[1:length(ma)] ma]
+end
+
+"""
+    function random_mate(ID, nsire, ndam, nsib)
+---
+Random mate `ID`.
+Its first `nsire` are sires, last `ndam` are dams.
+
+**Note**: `nsire + ndam` must be of `length(ID)`.
+"""
+function random_mate(ID, nsire, ndam, nsib)
+    r  = Int(ceil(ndam/nsire))
+    pa = repeat(repeat(shuffle(ID[1:nsire]), r), inner = nsib)
+    ma = repeat(ID[(nsire+1):(ndam+nsire)], inner = nsib)
     [pa[1:length(ma)] ma]
 end
     
@@ -41,10 +58,11 @@ end
 """
     function gdrop(base, ped)
 ---
-Drop genotypes of `base`, through `ped`.
+Drop genotypes of a subset or all of `snp`, through `ped` into `osnp`.
+The last will be returned.
 
 ToDo:
-Needs optimization
+Needs optimization.  May be parallel into 10 tasks.
 """
 function gdrop(snp, ped, r)
     noff = size(ped)[1]

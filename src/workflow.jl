@@ -5,6 +5,7 @@ This records the framework of the package.
 It can also serve as a template pipeline.
 """
 function workflow(debug = true)
+    copyright()
     # It is better to setup simulation scenarios with a dictionary
     # Then pass it as a named tuple, so that we can conveniantly use `x.y`
     # using a dictionary also makes it easy to modify parameter structure.
@@ -16,7 +17,7 @@ function workflow(debug = true)
                       :nG8n => 10, # number of generations
                       :nQTL => [1000, 1000],
                       :h²   => [.5, .5],
-                      :t7d  => 0., # threshold for the binary trait
+                      :p8e  => .5, # percentage of affected in the binary trait
                       )
     
     par = (; Parameters...)     # named tuple.  contents as above
