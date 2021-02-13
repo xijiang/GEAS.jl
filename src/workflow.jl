@@ -4,7 +4,7 @@
 This records the framework of the package.
 It can also serve as a template pipeline.
 """
-function workflow(debug = true)
+function workflow(; debug = true)
     copyright()
     # It is better to setup simulation scenarios with a dictionary
     # Then pass it as a named tuple, so that we can conveniantly use `x.y`
@@ -19,7 +19,6 @@ function workflow(debug = true)
                       :h²   => [.5, .5],
                       :p8e  => .5, # percentage of affected in the binary trait
                       )
-    
     par = (; Parameters...)     # named tuple.  contents as above
     
     if debug

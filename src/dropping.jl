@@ -67,7 +67,7 @@ Needs optimization.  May be parallel into 10 tasks.
 function gdrop(snp, ped, r)
     noff = size(ped)[1]
     nsnp = size(snp)[1]
-    osnp = Array{Int8, 2}(undef, nsnp, 2noff)
+    osnp = Array{Bool, 2}(undef, nsnp, 2noff)
     i = 1
     sample = zeros(nsnp)
     @inbounds for prt in eachrow(ped)

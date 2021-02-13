@@ -63,9 +63,10 @@ function vcf2dic(vcf)
         end
         pos = reshape(pos, (2, :))'
         r   = haldane(pos)
+        hap = reshape(hap, (nid*2, :))'
         Dict(:pos => pos,
              :r => r,
-             :hap => reshape(hap, (nid*2, :))')
+             :hap => Bool.(hap))
     end
 end
 

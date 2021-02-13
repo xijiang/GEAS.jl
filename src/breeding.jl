@@ -9,24 +9,23 @@ There are no need to random sample again as they were randomly dropped
 from the previous generation.
 """
 function test_sets(nfam, nsib, nclg)
-    nprd = nsib - nclg
-    clg = repeat(1:nclg, nfam)
-    prd = repeat(nclg+1:nsib, nfam)
-    a, b, c, d, inc = 1, nclg, 1, nprd, 0
-    for _ in 1:nfam
-        clg[a:b] .+= inc
-        prd[c:d] .+= inc
-        a += nclg
-        b += nclg
-        c += nprd
-        d += nprd
-        inc += nsib
+    # Index for ID in, e.g., phenotypes
+    ic = begin
+        a = repeat(0:nsib:(nfam-1)*nsib, inner=nclg)
+        a .+= repeat(1:nclg, nfam)
     end
-    hp = 2repeat(prd, inner=2)
+    ip = begin
+        n = nsib - nclg
+        a = repeat(0:nsib:(nfam-1)*nsib, inner=n)
+        a .+= repeat(nclg+1:nsib, nfam)
+    end
+    
+    # Index for haplotypes
+    hp = 2repeat(ip, inner=2)
     hp[1:2:end] .-= 1
-    hc = 2repeat(clg, inner=2)
+    hc = 2repeat(ic, inner=2)
     hc[1:2:end] .-= 1
-    prd, clg, hp, hc
+    ip, ic, hp, hc
 end
 
 """
@@ -44,85 +43,81 @@ Be careful that no range check is performed.
 """
 function select_nuclear(df, nSire, nDam)
     gp = groupby(df, :sex)
-    sires = last(sort(gp[1], :val), nSire).ID
-    dams  = last(sort(gp[2], :val), nDam ).ID
+    sires = last(sort(gp[1], :val), nSire).id
+    dams  = last(sort(gp[2], :val), nDam ).id
     return [sires; dams]
 end
 
 """
-    function generation_one(base, par, qtl)
----
-The base population size varies.
-The rest of the generations have a constant size.
-This function is to scale generation one, such that,
-the production population and the challenge population are
-approximately equal to the later generations.
-This returns SNP genotypes of the nuclear population of generation 2.
-"""
-function generation_one(base, par, qtl)
-    R   = par.nDam ÷ par.nSire  # female:male ratio
-    if R < 1
-        @warn join(["",
-                    "- Sires are more than dams.",
-                    "- female:male set to 1:1 in base."],
-                   "\n")
-        R = 1
-    end
-    n₀ = size(base[:hap])[2] ÷ 2  # base population size
-    nd = n₀ ÷ (R + 1) * R         # number of dams, or families
-    ns = par.nDam * par.nSib ÷ nd # sibship size
-    nc = par.nDam * par.nC7e ÷ nd # number challenged
-    nn = par.nSire + par.nDam     # nuclear population size
-
-    # breed and measure
-    x₁, x₂, i₁, i₂ = test_sets(nd, ns, nc)
-    np₁ = length(x₁)            # nID for production in generation 1
-    ped = random_mate(n₀ - nd, nd, ns)
-    nxt = gdrop(base[:hap], ped, base[:r])
-    bv₁, p₁ = phenotype(nxt, qtl[1], par.h²[1])
-    bv₂, p₂ = phenotype(nxt, qtl[2], par.h²[2], par.p8e)
-    sex = rand(0:1, np₁)
-    obs = Dict(:g₁  => nxt[:, i₁],
-               :g₂  => nxt[:, i₂],
-               :bv₁ => bv₁[x₁],
-               :bv₂ => bv₂[x₂],
-               :p₁  => p₁[x₁],
-               :p₂  => p₂[x₂],
-               :n₂  => [length(x₂)],
-               :ped => [ones(Int16, length(x₁)) sex ped[x₁, :]])
-    
-    # select nuclear of next generation
-    # !!!!!!!!!! evaluation line should be inserted here.
-    df = DataFrame(ID = 1:np₁, sex = rand(0:1, np₁), val = obs[:p₁])
-    nuclear = select_nuclear(df, par.nSire, par.nDam)
-    obs, nuclear
-end
-
-"""
-    function determine_storage(base, par)
+    function create_storage(base, par)
 ---
 Determine array sizes for one-go genotype storage.
 This is to avoid too much memory allocation, 
 and garbage collection.
 Above also cause program crash.
 """
-function determine_storage(base, par)
-    n₀ = size(base[:hap])[2] ÷ 2  # base population size
-    nSNP = size(base[:hap])[1]
-    r  = par.nDam / par.nSire
-    nSir = Int(floor(n₀/(1+r)))
-    nDam = n₀ - nSir
+function create_storage(base, par, qtl)
+    # Generation 0:
+    n₀   = size(base[:hap])[2] ÷ 2 # base population size
+    nSnp = size(base[:hap])[1]
+    nSire = begin
+        r = par.nDam / par.nSire
+        Int(floor(n₀/(1+r)))
+    end
+    nDam = n₀ - nSire
+    
+    # Generation 1:
     nSib = par.nDam * par.nSib ÷ nDam # sibship size
     nClg = par.nDam * par.nC7e ÷ nDam # number challenged
     nPrd = nSib - nClg
+    ped = random_mate(nSire, nDam, nSib)
+    nxt = gdrop(base[:hap], ped, base[:r])
+    ip, ic, hp, hc = test_sets(nDam, nSib, nClg)
+    bv₁, p₁ = phenotype(nxt, qtl[1], par.h²[1])
+    bv₂, p₂ = phenotype(nxt, qtl[2], par.h²[2], par.p8e)
+
+    # Storage, with simulated generation one included.
     tPrd = nDam * nPrd + (par.nG8n - 1) * (par.nSib - par.nC7e) * par.nDam
     tClg = nDam * nClg + (par.nG8n - 1) *  par.nC7e             * par.nDam
-    gOne = Dict(:nSire => nSir,
-                :nDam  => nDam,
-                :nSib  => nSib,
-                :nP8n  => nPrd, # n-production
-                :nC7e  => nClg) # n-challenged
-    nSNP, tPrd, tClg, (; gOne...)
+
+    #- SNP genotypes
+    snp₁ = ones(Bool, nSnp, tPrd)
+    snp₂ = ones(Bool, nSnp, tClg)
+    snp₁[:, 1:length(hp)] = nxt[:, hp]
+    snp₂[:, 1:length(hc)] = nxt[:, hc]
+
+    #- Produciton population
+    prd = begin
+        t = (par.nSib - par.nC7e) * par.nDam
+        g8n = Int8.([ones(nPrd * nDam); repeat(2:par.nG8n, inner=t)])
+        id  = 1:tPrd
+        sex = rand(Int8.(0:1), tPrd) # determine sex in very good advance
+        Sir = Array{Int32, 1}(undef, tPrd)
+        Dam = Array{Int32, 1}(undef, tPrd)
+        TBV = Array{Float64, 1}(undef, tPrd)
+        p7e = Array{Float64, 1}(undef, tPrd)
+        n₁  = length(ip)        # fill in generation one info
+        # !!!!OBS!!! Pedigree below
+        #     if to calculate A matrix, add n_base to 2+ generations.
+        Sir[1:n₁] = ped[ip, 1]
+        Dam[1:n₁] = ped[ip, 2]
+        TBV[1:n₁] = bv₁[ip]
+        p7e[1:n₁] = p₁[ip]
+        DataFrame(g8n=g8n, id=id, sex=sex, sir=Sir, dam=Dam, tbv=TBV, p7e=p7e)
+    end
+
+    #- The challenged ones
+    clg = begin
+        t = par.nC7e * par.nDam
+        g8n = Int8.([ones(nClg * nDam); repeat(2:par.nG8n, inner = t)])
+        TBV = Array{Float64, 1}(undef, tClg)
+        p7e = Array{Float64, 1}(undef, tClg)
+        n₂ = length(ic)         # fill in info of generation one
+        TBV[1:n₂] = bv₂[ic]
+        p7e[1:n₂] = p₂[ic]
+        DataFrame(g8n = g8n, tbv = TBV, p7e = p7e)
+    end
+    snp₁, snp₂, prd, clg, length(ip), length(ic), length(hp), length(hc)
 end
 
 """
@@ -138,74 +133,40 @@ Disk I/O is avoided as much as possible.
 A full pedigree should include size(base) rows of `0 0`.
 """
 function breeding_program(base, par)
-    # Storage in memory
-    nSnp, nPrd, nClg, pOne = determine_storage(base, par)
-    gPrd = zeros(Int8, nSnp, nPrd)
-    gClg = zeros(Int8, nSnp, nClg)
-    Prd = DataFrame(g8n  = ones(Int8, nPrd), # generation
-                    sex  = rand(0:1, nPrd),  # determine sex in very good advance
-                    Sire = zeros(Int, nPrd),
-                    Dam  = zeros(Int, nPrd),
-                    tbv  = zeros(nPrd),
-                    p7e  = zeros(nPrd)) # phenotype
-    Clg = DataFrame(tbv = zeros(nClg),
-                    p7e = zeros(nClg))
-
-    ## QTL setup for this simulation
+    # general parameters
     qtl = sim_QTL(base, par.nQTL...)
-    println()                   # breeding cycles begin below
-    @info "F-1: Scaled from base"
-    begin                       # generation one
-        ped = random_mate(pOne.nSire, pOne.nDam, pOne.nSib)
-        nxt = gdrop(base[:hap], ped, base[:r])
-        #fill_storage(Prd, Clg, cur, qtl, par
+    @info "Create storage and generation one"
+    snp₁, snp₂, prd, clg, f1, f2, f3, f4 = # f: from
+        create_storage(base, par, qtl)
+    nSire, nDam, nSib, nChallenge, percentage, generation =
+        par.nSire, par.nDam, par.nSib, par.nC7e, par.p8e, par.nG8n
+    ip, ic, hp, hc = test_sets(nDam, nSib, nChallenge)
+    for ig in 2:generation
+        @info "generation $ig"
+        # OBS!!!
+        # select all previous generations
+        # sp = view..., sc=view..., p=view...
+        # evaluate them → df.val, then below
+        df = select(prd[(prd.g8n .== ig-1), :], :id, :sex, :tbv => :val)
+        nuclear = select_nuclear(df, nSire, nDam)
+        # simulate current generation
+        ped = random_mate(nuclear, nSire, nDam, nSib)
+        nxt = gdrop(snp₁, ped, base[:r])
         bv₁, p₁ = phenotype(nxt, qtl[1], par.h²[1])
         bv₂, p₂ = phenotype(nxt, qtl[2], par.h²[2], par.p8e)
+        # update storage
+        l1, l2, l3, l4 = length.((ip, ic, hp, hc))
+        prd.tbv[f1+1:f1+l1] = bv₁[ip]
+        prd.p7e[f1+1:f1+l1] =  p₁[ip]
+        prd.sir[f1+1:f1+l1] = ped[ip, 1]
+        prd.dam[f1+1:f1+l1] = ped[ip, 2]
+        clg.tbv[f2+1:f2+l2] = bv₂[ic]
+        clg.p7e[f2+1:f2+l2] =  p₂[ic]
+        snp₁[:, f3+1:f3+l3] = nxt[:, hp]
+        snp₂[:, f4+1:f4+l4] = nxt[:, hc]
+        f1 += l1
+        f2 += l2
+        f3 += l3
+        f4 += l4
     end
-
-    # The rest generations
-    pPls = begin
-        tmp = Dict(:nSire => par.nSire,
-                   :nDam  => par.nDam,
-                   :nSib  => par.nSib,
-                   :nP8n  => par.nSib - par.nC7e,
-                   :nC7e  => par.nC7e)
-        (; tmp...)
-    end
-    #for ig in 2:par.nG8n
-    #    @info "F-$ig"
-    #end
-    #obs, nuclear = generation_one(base, par, qtl)
-    #
-    ## other generations
-    #x₁, x₂, i₁, i₂ = test_sets(par.nDam, par.nSib, par.nC7e)
-    #ns = par.nSire + par.nDam   # starts from base population size
-    #np = length(x₁)             # No. of sibs for production in g8n 2+.
-    #nn = par.nSire + par.nDam   # nuclear population size
-    #for ig in 2:par.nG8n        # breeding and selection cycles
-    #    @info "F-$ig"
-    #    cur = length(obs[:p₁]) # ID of new g8n starts after this.
-    #    obs = begin
-    #        ped = random_mate(nuclear, par.nSire, par.nDam, par.nSib)
-    #        nxt = gdrop(obs[:g₁], ped, base[:r])
-    #        ped .+= ns          # to make it start from generation 0
-    #        sex = rand(0:1, np)
-    #        bv₁, p₁ = phenotype(nxt, qtl[1], par.h²[1])
-    #        bv₂, p₂ = phenotype(nxt, qtl[2], par.h²[2], par.p8e)
-    #        Dict(:g₁  => [obs[:g₁]   nxt[:, i₁]],
-    #             :g₂  => [obs[:g₂]   nxt[:, i₂]],
-    #             :bv₁ => [obs[:bv₁]; bv₁[x₁]],
-    #             :bv₂ => [obs[:bv₂]; bv₂[x₂]],
-    #             :p₁  => [obs[:p₁];  p₁[x₁]],
-    #             :p₂  => [obs[:p₂];  p₂[x₂]],
-    #             :n₂  => [obs[:n₂];  length(x₂)],
-    #             :ped => [obs[:ped]; [ones(Int16, np).*ig sex ped[x₁, :]]]
-    #             )
-    #    end
-    #    df = DataFrame(ID = cur+1:cur+np,
-    #                   sex = rand(0:1, np),
-    #                   val = obs[:p₁][cur+1:cur+np])
-    #    nuclear = select_nuclear(df, par.nSire, par.nDam)
-    #end
-    #obs
 end
