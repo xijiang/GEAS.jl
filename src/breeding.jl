@@ -81,8 +81,8 @@ function create_storage(base, par, qtl)
     tClg = nDam * nClg + (par.nG8n - 1) *  par.nC7e             * par.nDam
 
     #- SNP genotypes
-    snp₁ = ones(Bool, nSnp, tPrd)
-    snp₂ = ones(Bool, nSnp, tClg)
+    snp₁ = ones(Bool, nSnp, tPrd*2)
+    snp₂ = ones(Bool, nSnp, tClg*2)
     snp₁[:, 1:length(hp)] = nxt[:, hp]
     snp₂[:, 1:length(hc)] = nxt[:, hc]
 
