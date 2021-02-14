@@ -61,13 +61,19 @@ end
 Drop genotypes of a subset or all of `snp`, through `ped` into `osnp`.
 The last will be returned.
 
-ToDo:
-Needs optimization.  May be parallel into 10 tasks.
+## Note:
+If to use `osnp = BitArray(undef, nsnp, 2noff)` to save memory,
+the speed is greatly reduced.
+
+## ToDo:
+Needs optimization.
+May be parallel into 10 tasks.
+Least urgent.
 """
 function gdrop(snp, ped, r)
     noff = size(ped)[1]
     nsnp = size(snp)[1]
-    osnp = Array{Bool, 2}(undef, nsnp, 2noff)
+    osnp = zeros(Bool, nsnp, 2noff)
     i = 1
     sample = zeros(nsnp)
     @inbounds for prt in eachrow(ped)

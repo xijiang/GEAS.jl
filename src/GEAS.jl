@@ -1,7 +1,7 @@
 module GEAS
 
 using LinearAlgebra, Dates, HTTP, DataFrames, Random, Distributions,
-    Serialization, Statistics
+    Serialization, Statistics, StatsPlots
 export workflow
 
 prj_dir = begin
@@ -24,7 +24,7 @@ include("structs.jl")
 include("phenotypes.jl")
 include("breeding.jl")
 include("estimation.jl")
-
+include("test-breeding.jl")
 copyright()
 
 end # module

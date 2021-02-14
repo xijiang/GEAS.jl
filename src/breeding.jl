@@ -81,8 +81,8 @@ function create_storage(base, par, qtl)
     tClg = nDam * nClg + (par.nG8n - 1) *  par.nC7e             * par.nDam
 
     #- SNP genotypes
-    snp₁ = ones(Bool, nSnp, tPrd*2)
-    snp₂ = ones(Bool, nSnp, tClg*2)
+    snp₁ = BitArray(undef, nSnp, tPrd*2)
+    snp₂ = BitArray(undef, nSnp, tClg*2)
     snp₁[:, 1:length(hp)] = nxt[:, hp]
     snp₂[:, 1:length(hc)] = nxt[:, hc]
 
@@ -97,7 +97,7 @@ function create_storage(base, par, qtl)
         TBV = Array{Float64, 1}(undef, tPrd)
         p7e = Array{Float64, 1}(undef, tPrd)
         n₁  = length(ip)        # fill in generation one info
-        # !!!!OBS!!! Pedigree below
+        # !!!! OBS !!! Pedigree below
         #     if to calculate A matrix, add n_base to 2+ generations.
         Sir[1:n₁] = ped[ip, 1]
         Dam[1:n₁] = ped[ip, 2]
@@ -138,24 +138,29 @@ function breeding_program(base, par)
     @info "Create storage and generation one"
     snp₁, snp₂, prd, clg, f1, f2, f3, f4 = # f: from
         create_storage(base, par, qtl)
+    # shorthands
     nSire, nDam, nSib, nChallenge, percentage, generation =
         par.nSire, par.nDam, par.nSib, par.nC7e, par.p8e, par.nG8n
     ip, ic, hp, hc = test_sets(nDam, nSib, nChallenge)
+    l1, l2, l3, l4 = length.((ip, ic, hp, hc)) # lengths of generation 2+
     for ig in 2:generation
         @info "generation $ig"
+        # prepare for evaluation
+        
         # OBS!!!
         # select all previous generations
         # sp = view..., sc=view..., p=view...
         # evaluate them → df.val, then below
         df = select(prd[(prd.g8n .== ig-1), :], :id, :sex, :tbv => :val)
         nuclear = select_nuclear(df, nSire, nDam)
+        
         # simulate current generation
         ped = random_mate(nuclear, nSire, nDam, nSib)
         nxt = gdrop(snp₁, ped, base[:r])
         bv₁, p₁ = phenotype(nxt, qtl[1], par.h²[1])
         bv₂, p₂ = phenotype(nxt, qtl[2], par.h²[2], par.p8e)
-        # update storage
-        l1, l2, l3, l4 = length.((ip, ic, hp, hc))
+        
+        # update storage.  codes below are ugly.
         prd.tbv[f1+1:f1+l1] = bv₁[ip]
         prd.p7e[f1+1:f1+l1] =  p₁[ip]
         prd.sir[f1+1:f1+l1] = ped[ip, 1]
@@ -169,4 +174,5 @@ function breeding_program(base, par)
         f3 += l3
         f4 += l4
     end
+    return prd
 end
