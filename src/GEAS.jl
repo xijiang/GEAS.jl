@@ -23,7 +23,7 @@ include("dropping.jl")
 include("structs.jl")
 include("phenotypes.jl")
 include("breeding.jl")
-include("estimation.jl")
+include("evaluation.jl")
 include("test-breeding.jl")
 copyright()
 

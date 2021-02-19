@@ -27,22 +27,22 @@ function sim_QTL(base, nqtl...; shape = 0.4)
     for n in nqtl
         loci = sort(randperm(tsnp)[1:n])
         
-        q = zeros(Int8, n, nid) # QTL genotypes
+        Q = zeros(Int8, n, nid) # QTL genotypes
         for id in 1:nid
-            q[:, id] = base[:hap][loci, id*2 - 1] + base[:hap][loci, id*2]
+            Q[:, id] = base[:hap][loci, id*2 - 1] + base[:hap][loci, id*2]
         end
-        e = begin
-            if shape < 0
-                randn(n)
-            else
-                rand(Gamma(0.4, 1), n)
-            end
+        a  = (shape < 0) ? randn(n) : rand(Gamma(0.4, 1), n)
+        vₐ = var(Q'a)           # variance of TBV
+        a ./= sqrt(vₐ)          # scale allele effect, such that vₐ = 1
+        m = mean(Q'a)           # base population expectation
+        t = 2sum(a[a.>0]) - m   # expectation of an ideal ID
+        rank = begin
+            p = mean(Q, dims=2) ./2
+            q = 1 .- p
+            x = 2 .* p .* q .* a .* a
+            sortperm(vec(x), rev=true)
         end
-        v = var(q'e)
-        e ./= sqrt(v)
-        m = mean(q'e)
-        t = 2sum(e[e.>0]) - m
-        push!(qinfo, QTL(loci, e, m, t))
+        push!(qinfo, QTL(loci, a, rank, m, t))
     end
     qinfo
 end

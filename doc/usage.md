@@ -6,6 +6,7 @@
 ```bash
 ssh-keygen
 # it is better to set a password for this key pair.
+chmod 600 ~/.ssh/id_rsa
 ```
 ### On github.com
 1. Click your icon on the top-right corner
@@ -39,7 +40,7 @@ git clone git@github.com:xijiang/GEAS.jl GEAS
 In, say `~/workspace/GEAS`:
 ```bash
 mkdir -p dat/run
-wget https://nmbu.org/tmp/ns.ser
+wget http://nmbu.org/tmp/ns.ser
 ```
 
 These data were imputed and `serialized` for ease of later simulations and tweaks.

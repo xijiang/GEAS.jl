@@ -1,6 +1,7 @@
 struct QTL
     pos
     effect
+    rank                        # rand high -> low on 2pqa^2
     mean::Float64               # mean and max are about the base population
     max::Float64
 end
