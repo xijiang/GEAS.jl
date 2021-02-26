@@ -1,4 +1,23 @@
 """
+    function alleles2gt(snp)
+---
+Merge alleles to genotypes.
+
+- SNP haplotypes are SNP × (Nid × 2)
+- SNP alleles are 0 & 1.
+- 00 → 0; 01/10 → 1; 11 → 2
+"""
+function alleles2gt(snp)
+    nlc, nid = size(snp)
+    nid ÷= 2
+    g = Array{Float32, 2}(undef, nlc, nid)
+    @inbounds for i in 1:nid
+        g[:, i] = snp[:, 2i-1] + snp[:, 2i]
+    end
+    return g
+end
+
+"""
 Given SNP genotypes `snp`, and QTL loci and effects in `qtl`, this function return
 true breeding values of each individual.
 """
@@ -6,10 +25,7 @@ function breeding_value(snp, qtl)
     l = qtl.pos
     e = qtl.effect             # shorthands
     n = size(snp)[2] ÷ 2       # number of individuals
-    g = zeros(Int8, length(l), n)      # QTL genotypes (012)
-    @inbounds for i in 1:n
-        g[:, i] = snp[l, 2i-1] + snp[l, 2i]
-    end
+    g = alleles2gt(snp[l, :])
     return g'e
 end
 

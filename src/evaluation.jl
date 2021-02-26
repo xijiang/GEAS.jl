@@ -45,6 +45,19 @@ function grm_yang(g)
     grm
 end
 
+"""
+    function evaluation(g₁, p₁, g₂, p₂, qlc, h²)
+---
+- ₁: for production trait
+- ₂: for binary trait
+
+Vector `qlc` specify known QTL to be fitted as fixed effects.
+
+The function returns a vector of score for ID in `₁`.
+"""
+function evaluation(g₁, p₁, q₁, h₁², g₂, p₂, q₂, h₂²)
+end
+
 # below all return GEBV corresponding to `g`, or `g₁`.
 function g_blup(g, p)
     @warn "Under construction"
@@ -54,11 +67,63 @@ function g_blup(g₁, g₂, p)
     @warn "Under construction"
 end
 
-function snp_blup(g, p; σₐ² = 1, σₑ² = 1)
+"""
+    function snp_blup(g, p, q; σₐ² = 1, σₑ² = 1)
+---
+With SNP genotypes `g`, phenotypes `p`, and QTL SNP `q`,
+this function return a vector of SNP effects with SNP-BLUP method.
+
+SNP specified in `q` is fitted as fixed effects.
+"""
+function snp_blup(g, p, q; σₐ² = 1, σₑ² = 1)
+    
+end
+
+"""
+    function snp_blup(g, p, q, f; σₐ² = 1, σₑ² = 1)
+---
+With SNP genotypes `g`, phenotypes `p`, QTL SNP `q`, and filial `f`,
+this function return a vector of SNP effects with SNP-BLUP method.
+
+SNP specified in `q` is fitted as fixed effects.
+Filial/generation `f` is fitted as fixed effects.
+"""
+function snp_blup(g, p, q, f; σₐ² = 1, σₑ² = 1)
     @warn "Under construction"
 end
 
-function snp_blup(g₁, g₂, p)
-    @warn "Under construction"
+"""
+    function snp_blup(g, p; σₐ² = 1, σₑ² = 1)
+---
+The plain SNP-BLUP procedure.
+Returns E(population) and  a vector of SNP effects.
+"""
+function snp_blup(g, p; σₐ² = 1, σₑ² = 1)
+    nlc, nid = size(g)
+    @info join(["",
+                "SNP-BLUP",
+                "  $nlc SNP",
+                "  $nid ID"], "\n")
+
+    λ = (σₑ²/σₐ²) * nlc
+
+    lhs = begin
+        edge = sum(g, dims=2)
+        tmp = Array{Float32, 2}(undef, nlc+1, nlc+1)
+        tmp[1, 1] = nid
+        tmp[1, 2:end] = edge'
+        tmp[2:end, 1] = edge
+        tmp[2:end, 2:end] = g * g' + I .* λ
+        tmp
+    end
+
+    rhs = begin
+        tmp = Array{Float32, 1}(undef, nlc + 1)
+        tmp[1] = sum(p)
+        tmp[2:end] = g * p
+        tmp
+    end
+    sol = lhs \ rhs
+    sol[1], sol[2:end]
 end
 # Other methods, e.g., bayes-α, β, γ, π, may be added.

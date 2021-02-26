@@ -45,6 +45,18 @@ wget http://nmbu.org/tmp/ns.ser
 
 These data were imputed and `serialized` for ease of later simulations and tweaks.
 
+The file `ns.ser` was done with julia v1.7.x. If you are using other versions, then
+```bash
+wget http://nmbu.org/tmp/base.jld2
+```
+
+Then in julia REPL:
+```julia
+using JLD2, Serialization
+@load "path-to/base.jld2"
+serialize("dat/run/ns.ser", base)
+```
+
 ## Run the functions
 In, say, `~/workspace/GEAS`:
 ```bash

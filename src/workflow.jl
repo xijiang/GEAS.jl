@@ -14,7 +14,7 @@ function workflow(; debug = true)
                       :nDam => 250, # male:female = 1:2
                       :nSib => 100,
                       :nC7e => 40, # number of sib to be challenged
-                      :nG8n => 10, # number of generations
+                      :nG8n => 1, # number of generations
                       :nQTL => [1000, 1000],
                       :h²   => [.5, .5],
                       :p8e  => .5, # percentage of affected in the binary trait
@@ -31,11 +31,7 @@ function workflow(; debug = true)
         base = deserialize(joinpath(dat_dir, "run/ns.ser")) # to save time
 
         println("\n")
-        @info join(["",
-                    "STEP II: The breeding program",
-                    "-----------------------------"],
-                   "\n")
-        breeding_program(base, par)
+        test_evaluation(base)
     else
         @info join(["Running in release mode",
                     "STEP I: Preparing base",
@@ -50,5 +46,12 @@ function workflow(; debug = true)
         @time gt600()           # -> c.vcf.gz
         @time base = vcf2dic(joinpath(dat_dir, "run/c.vcf.gz"))
         @time serialize(joinpath(dat_dir, "run/ns.ser"), base)
+        #using JLD2
+        #@save joinpath(dat_dir, "run/base.jld2") base
+        @info join(["",
+                    "STEP II: The breeding program",
+                    "-----------------------------"],
+                   "\n")
+        @time breeding_program(base, par)
     end
 end
