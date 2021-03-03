@@ -1,44 +1,38 @@
 """
-    function test_evaluation(base)
+    function test_eval()
 ---
 Create F₁ to test genomic seleciton methods.
-
-## Usage
-```julia
-using Serialization
-base = deserialize("dat/run/ns.ser")
-GEAS.test_evaluation(base)
-```
 """
-function test_evaluation()
-    base = deserialize("dat/run/ns.ser")
+function test_eval(; just_one = false)
+    #base = deserialize("dat/run/ns.ser")
+    @load "dat/run/base.jld2"
     
-    nSire, nDam, nClg = 200, 400, 10
+    nSire, nDam, nSib = 200, 400, 42
     h² = [.5, .5]
     par = begin
-        nqtl = repeat([100, 500, 1000], inner=3)
-        nsib = repeat([5, 10, 30], 3) .+ nClg
-        [nqtl nsib]
+        nqtl = repeat([100, 500, 1000], inner=5)
+        nclg = repeat([37, 32, 22, 12, 2], 3)
+        [nqtl nclg]
     end
-    # below can actually just simulate a large sibship size,
-    # then sample QTL and sub-sibships
-    # but since the speed is OK.  I ran 9x time, to avoid re-programming
-    for (nqtl, nSib) in eachrow(par)
-        # simulation
+    ped = random_mate(nSire, nDam, nSib)
+    nxt = gdrop(base[:hap], ped, base[:r])
+
+    rst = open(joinpath(dat_dir, "run/test-evaluation.txt"), "w")
+    lhs = nothing
+    for (nqtl, nclg) in eachrow(par)
         qtl = sim_QTL(base, [nqtl, nqtl]...)
-        ped = random_mate(nSire, nDam, nSib)
-        nxt = gdrop(base[:hap], ped ,base[:r])
-        ip, ic, hp, hc = test_sets(nDam, nSib, nClg)
+        ip, ic, hp, hc = test_sets(nDam, nSib, nclg)
         bv₁, p₁ = phenotype(nxt, qtl[1], h²[1])
         bv₂, p₂ = phenotype(nxt, qtl[2], h²[2], 0.5) # 50% death
 
         # genotypes and phenotypes
-        gp = alleles2gt(nxt[:, hp])                  # genotypes
+        gp = alleles2gt(nxt[:, hp]) # genotypes
         gc = alleles2gt(nxt[:, hc])
         pp, pc = p₁[ip], p₂[ic] # phenotypes
 
         results = zeros(6)
         results[1:2] = [cor(bv₁, p₁), cor(bv₂, p₂)]
+
         # evaluation on phenotypes
         _, sp = snp_blup(gp, pp)
         gebv = gp'sp
@@ -49,6 +43,11 @@ function test_evaluation()
         _, sp = snp_blup(gp, bv)
         gebv = gp'sp
         results[5:6] = [cor(gebv, bv), cor(gebv, pp)]
-        print(round.(results; digits = 3), "\n")
+        nprd = nSib - nclg
+        print("$nqtl, $nprd: ", round.(results; digits = 3), "\n")
+        print(rst, "$nqtl, $nprd: ", round.(results; digits = 3), "\n")
+
+        just_one && break
     end
+    close(rst)
 end

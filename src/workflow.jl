@@ -28,7 +28,8 @@ function workflow(; debug = true)
                     "-- run `GEAS.Update()` to update binaries if necessary"],
                    "\n")
         # read back real data
-        base = deserialize(joinpath(dat_dir, "run/ns.ser")) # to save time
+        @load "dat/run/base.jld2"                           # =>base
+        #base = deserialize(joinpath(dat_dir, "run/ns.ser")) # to save time
 
         println("\n")
         test_evaluation(base)
@@ -47,7 +48,7 @@ function workflow(; debug = true)
         @time base = vcf2dic(joinpath(dat_dir, "run/c.vcf.gz"))
         @time serialize(joinpath(dat_dir, "run/ns.ser"), base)
         #using JLD2
-        #@save joinpath(dat_dir, "run/base.jld2") base
+        @save joinpath(dat_dir, "run/base.jld2") base
         @info join(["",
                     "STEP II: The breeding program",
                     "-----------------------------"],

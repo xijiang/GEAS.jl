@@ -46,59 +46,49 @@ function grm_yang(g)
 end
 
 """
-    function evaluation(g₁, p₁, g₂, p₂, qlc, h²)
+    function fxmat(F)
 ---
-- ₁: for production trait
-- ₂: for binary trait
+If the length of categorical vector `F` is `n`, which has `v` leveles,
+this function returns a `n × (v+1)` fixed effect matrix.
+`+1` is for mean, `μ`.
 
-Vector `qlc` specify known QTL to be fitted as fixed effects.
+In this simulation, the fixed effects are just the generation effects.
+As selection on the binary trait goes on, the genetic values are elavated.
+The challenge, however, is still killing half of the challenge population.
 
-The function returns a vector of score for ID in `₁`.
+I may later replace this part using `MixedModels`.
 """
-function evaluation(g₁, p₁, q₁, h₁², g₂, p₂, q₂, h₂²)
-end
-
-# below all return GEBV corresponding to `g`, or `g₁`.
-function g_blup(g, p)
-    @warn "Under construction"
-end
-
-function g_blup(g₁, g₂, p)
-    @warn "Under construction"
-end
-
-"""
-    function snp_blup(g, p, q; σₐ² = 1, σₑ² = 1)
----
-With SNP genotypes `g`, phenotypes `p`, and QTL SNP `q`,
-this function return a vector of SNP effects with SNP-BLUP method.
-
-SNP specified in `q` is fitted as fixed effects.
-"""
-function snp_blup(g, p, q; σₐ² = 1, σₑ² = 1)
-    
-end
-
-"""
-    function snp_blup(g, p, q, f; σₐ² = 1, σₑ² = 1)
----
-With SNP genotypes `g`, phenotypes `p`, QTL SNP `q`, and filial `f`,
-this function return a vector of SNP effects with SNP-BLUP method.
-
-SNP specified in `q` is fitted as fixed effects.
-Filial/generation `f` is fitted as fixed effects.
-"""
-function snp_blup(g, p, q, f; σₐ² = 1, σₑ² = 1)
-    @warn "Under construction"
+function fxmat(F)
+    levels = unique(F)
+    dic = begin
+        tmp = Dict()
+        col = 2
+        for l in levels
+            tmp[l] = col
+            col += 1
+        end
+        tmp
+    end
+    nlvl = length(levels) + 1
+    nobs = length(F)
+    X = zeros(Float32, nobs, nlvl)
+    X[:, 1] .= 1
+    for i in 1:length(F)
+        X[i, dic[F[i]]] = 1
+    end
+    X
 end
 
 """
-    function snp_blup(g, p; σₐ² = 1, σₑ² = 1)
+    function snp_blup(g, p; σₐ² = 1, σₑ² = 1, Q = [], F = [])
 ---
 The plain SNP-BLUP procedure.
 Returns E(population) and  a vector of SNP effects.
+
+**Warning**: I use Float32 to save memory.
+This will be changed if to run on a bigger machine.
 """
-function snp_blup(g, p; σₐ² = 1, σₑ² = 1)
+function snp_blup(g, p; σₐ² = 1, σₑ² = 1, Q = [], F = [])
     nlc, nid = size(g)
     @info join(["",
                 "SNP-BLUP",
@@ -106,24 +96,68 @@ function snp_blup(g, p; σₐ² = 1, σₑ² = 1)
                 "  $nid ID"], "\n")
 
     λ = (σₑ²/σₐ²) * nlc
-
+    X = begin           # incident matrix for fixed effects, include μ
+        if length(F) > 0
+            fxmat(F)
+        else
+            ones(Float32, nid, 1)
+        end
+    end
+    nf = size(X)[2]
+    sl = nlc + nf               # size of lhs
+    α, β = Float32[1, 0]        # scales for GEMM
     lhs = begin
-        edge = sum(g, dims=2)
-        tmp = Array{Float32, 2}(undef, nlc+1, nlc+1)
-        tmp[1, 1] = nid
-        tmp[1, 2:end] = edge'
-        tmp[2:end, 1] = edge
-        tmp[2:end, 2:end] = g * g' + I .* λ
+        tmp = Array{Float32, 2}(undef, sl, sl)
+
+        # upper left block
+        ul = view(tmp, 1:nf, 1:nf)
+        BLAS.gemm!('T', 'N', α, X, X, β, ul)
+
+        # lower left block
+        ll = view(tmp, nf+1:sl, 1:nf)
+        BLAS.gemm!('N', 'N', α, g, X, β, ll)
+
+        # upper right block
+        for i in 1:nf
+            for j in nf+1:sl
+                tmp[i, j] = tmp[j, i]
+            end
+        end
+
+        # lower right block
+        lr = view(tmp, nf+1:sl, nf+1:sl)
+        BLAS.gemm!('N', 'T', α, g, g, β, lr)
+        for i in nf+1:sl
+            tmp[i, i] += λ
+        end
+
+        # if some QTL as fixed effects
+        if length(Q) > 0
+            l = Q .+ nf
+            for x in l
+                tmp[x, x] -= λ
+            end
+        end
+        tmp
+    end
+    rhs = begin
+        tmp = Array{Float32, 1}(undef, sl)
+        y = convert.(Float32, p)
+        # Fixed effects
+        uv = view(tmp, 1:nf)
+        BLAS.gemv!('T', α, X, y, β, uv)
+
+        # Random effecs (may be some fixed QTL also)
+        lv = view(tmp, nf+1:sl)
+        BLAS.gemv!('N', α, g, y, β, lv)
         tmp
     end
 
-    rhs = begin
-        tmp = Array{Float32, 1}(undef, nlc + 1)
-        tmp[1] = sum(p)
-        tmp[2:end] = g * p
-        tmp
-    end
-    sol = lhs \ rhs
-    sol[1], sol[2:end]
+    # Solving
+    LAPACK.posv!('L', lhs, rhs)
+
+    # return fixed effects and SNP effects separately
+    rhs[1:nf], rhs[nf+1:end]
 end
+
 # Other methods, e.g., bayes-α, β, γ, π, may be added.
