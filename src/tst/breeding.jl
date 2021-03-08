@@ -29,7 +29,7 @@ function test_2_breeding(base, qtl, nsib)
                       )
     par = (; Parameters...)     # named tuple.  contents as above
     prd = breeding_program(base, par, qtl)
-    serialize(joinpath(dat_dir, "run/$nsib.ser"))
+    serialize(joinpath(dat_dir, "run/$nsib.ser"), prd)
 end
 
 """
