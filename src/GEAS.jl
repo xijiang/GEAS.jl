@@ -2,6 +2,7 @@ module GEAS
 
 using LinearAlgebra, Dates, HTTP, DataFrames, Random, Distributions,
     Serialization, Statistics, StatsPlots, JLD2
+import Octavian: matmul, matmul!
 export workflow
 
 prj_dir = begin
@@ -27,8 +28,8 @@ include("evaluation.jl")
 
 # Test files
 # all functions in files below have a prefix `test_`.
-include("test-breeding.jl")
-include("test-evaluation.jl")
+include("tst/breeding.jl")
+include("tst/evaluation.jl")
 
 copyright()
 

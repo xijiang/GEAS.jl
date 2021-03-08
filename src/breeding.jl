@@ -49,6 +49,30 @@ function select_nuclear(df, nSire, nDam)
 end
 
 """
+    function gene_edit(g, l; p=1)
+---
+Edit genotypes of the given ID on given QTL.
+As the effects I simulated are all positive,
+this will change the genotypes from `0` → `1`.
+If `0<p<1`, above editing from `0` → `1` will have a successful rate `p`.
+"""
+function gene_edit(g, l; p=1)
+    if 0<p<1
+        g[l, :] .= 1
+    else
+        t = view(g, :, l)
+        u, v = size(t)
+        for i in 1:u
+            for j in 1:v
+                if t[i, j] == 0 && rand() > p
+                    t[i, j] = 1
+                end
+            end
+        end
+    end
+end
+
+"""
     function create_storage(base, par)
 ---
 Determine array sizes for one-go genotype storage.
@@ -94,24 +118,33 @@ function create_storage(base, par, qtl)
         sex = rand(Int8.(0:1), tPrd) # determine sex in very good advance
         Sir = Array{Int32, 1}(undef, tPrd)
         Dam = Array{Int32, 1}(undef, tPrd)
-        TBV = Array{Float64, 1}(undef, tPrd)
-        p7e = Array{Float64, 1}(undef, tPrd)
+        TBV = Array{Float32, 1}(undef, tPrd)
+        T2C = Array{Float32, 1}(undef, tPrd) # TBV for disease trait
+        p7e = Array{Float32, 1}(undef, tPrd)
         n₁  = length(ip)        # fill in generation one info
         # !!!! OBS !!! Pedigree below
         #     if to calculate A matrix, add n_base to 2+ generations.
         Sir[1:n₁] = ped[ip, 1]
         Dam[1:n₁] = ped[ip, 2]
         TBV[1:n₁] = bv₁[ip]
+        T2C[1:n₁] = bv₂[ip]
         p7e[1:n₁] = p₁[ip]
-        DataFrame(g8n=g8n, id=id, sex=sex, sir=Sir, dam=Dam, tbv=TBV, p7e=p7e)
+        DataFrame(g8n=g8n,
+                  id=id,
+                  sex=sex,
+                  sir=Sir,
+                  dam=Dam,
+                  tbv=TBV,
+                  t2c=T2C,
+                  p7e=p7e)
     end
 
     #- The challenged ones
     clg = begin
         t = par.nC7e * par.nDam
         g8n = Int8.([ones(nClg * nDam); repeat(2:par.nG8n, inner = t)])
-        TBV = Array{Float64, 1}(undef, tClg)
-        p7e = Array{Float64, 1}(undef, tClg)
+        TBV = Array{Float32, 1}(undef, tClg)
+        p7e = Array{Float32, 1}(undef, tClg)
         n₂ = length(ic)         # fill in info of generation one
         TBV[1:n₂] = bv₂[ic]
         p7e[1:n₂] = p₂[ic]
@@ -121,7 +154,7 @@ function create_storage(base, par, qtl)
 end
 
 """
-    function breeding_program(base, par)
+    function breeding_program(base, par, nsib)
 ---
 Do the breeding with the given parameter `par`.
 I always breed the first generation separately.
@@ -132,9 +165,8 @@ Disk I/O is avoided as much as possible.
 ## Memo
 A full pedigree should include size(base) rows of `0 0`.
 """
-function breeding_program(base, par)
+function breeding_program(base, par, qtl)
     # general parameters
-    qtl = sim_QTL(base, par.nQTL...)
     @info "Create storage and generation one"
     snp₁, snp₂, prd, clg, f1, f2, f3, f4 = # f: from
         create_storage(base, par, qtl)
@@ -148,10 +180,31 @@ function breeding_program(base, par)
         # prepare for evaluation
         
         # OBS!!!
-        # select all previous generations
-        # sp = view..., sc=view..., p=view...
-        # evaluate them → df.val, then below
-        df = select(prd[(prd.g8n .== ig-1), :], :id, :sex, :tbv => :val)
+        # select ID for nuclear from ig-1 on data of all previous generations
+        val = begin             # scores for selective candidates
+            tmp = GS_dat[]
+            # the production trait
+            g1 = alleles2gt(view(snp₁, :, 1:f3))
+            p1 = select(prd[prd.g8n .< ig, :], :p7e).p7e
+            m1, s1 = snp_blup(g1, p1)
+            # the challenge trait
+            g2 = alleles2gt(view(snp₂, :, 1:f4))
+            p2 = select(clg[clg.g8n .< ig, :], :p7e).p7e
+            m2, s2 = begin
+                if ig>2         # generation as fixed effects
+                    f = select(clg[clg.g8n .< ig, :], :g8n).g8n
+                    snp_blup(g2, p2, σₐ² = .125, σₑ² = .125, F=f)
+                else
+                    snp_blup(g2, p2, σₐ² = .125, σₑ² = .125)
+                end  # as challenge always kills a constant proportion
+            end
+            g1's1 + g2's2
+        end
+        
+        df = select(prd[(prd.g8n .== ig-1), :], :id, :sex)
+        tl = length(df.id) - 1
+        df.val = vec(val)[end-tl:end]
+        # or, select(prd[(prd.g8n .== ig-1), :], :id, :sex, :tbv)
         nuclear = select_nuclear(df, nSire, nDam)
         
         # simulate current generation
@@ -162,6 +215,7 @@ function breeding_program(base, par)
         
         # update storage.  codes below are ugly.
         prd.tbv[f1+1:f1+l1] = bv₁[ip]
+        prd.t2c[f1+1:f1+l1] = bv₂[ip]
         prd.p7e[f1+1:f1+l1] =  p₁[ip]
         prd.sir[f1+1:f1+l1] = ped[ip, 1]
         prd.dam[f1+1:f1+l1] = ped[ip, 2]

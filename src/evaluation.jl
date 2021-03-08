@@ -49,8 +49,8 @@ end
     function fxmat(F)
 ---
 If the length of categorical vector `F` is `n`, which has `v` leveles,
-this function returns a `n × (v+1)` fixed effect matrix.
-`+1` is for mean, `μ`.
+this function returns a `n × v` fixed effect matrix.
+`μ` is thus not fitted.
 
 In this simulation, the fixed effects are just the generation effects.
 As selection on the binary trait goes on, the genetic values are elavated.
@@ -62,17 +62,16 @@ function fxmat(F)
     levels = unique(F)
     dic = begin
         tmp = Dict()
-        col = 2
+        col = 1
         for l in levels
             tmp[l] = col
             col += 1
         end
         tmp
     end
-    nlvl = length(levels) + 1
+    nlvl = length(levels)
     nobs = length(F)
-    X = zeros(Float32, nobs, nlvl)
-    X[:, 1] .= 1
+    X = zeros(Int16, nobs, nlvl) # I bet levels are no more than 32,767
     for i in 1:length(F)
         X[i, dic[F[i]]] = 1
     end
@@ -100,22 +99,22 @@ function snp_blup(g, p; σₐ² = 1, σₑ² = 1, Q = [], F = [])
         if length(F) > 0
             fxmat(F)
         else
-            ones(Float32, nid, 1)
+            ones(Int16, nid, 1)
         end
     end
     nf = size(X)[2]
     sl = nlc + nf               # size of lhs
-    α, β = Float32[1, 0]        # scales for GEMM
+    #α, β = Float32[1, 0]        # scales for GEMM
     lhs = begin
         tmp = Array{Float32, 2}(undef, sl, sl)
 
         # upper left block
         ul = view(tmp, 1:nf, 1:nf)
-        BLAS.gemm!('T', 'N', α, X, X, β, ul)
+        matmul!(ul, X', X)
 
         # lower left block
         ll = view(tmp, nf+1:sl, 1:nf)
-        BLAS.gemm!('N', 'N', α, g, X, β, ll)
+        matmul!(ll, g, X)
 
         # upper right block
         for i in 1:nf
@@ -126,7 +125,7 @@ function snp_blup(g, p; σₐ² = 1, σₑ² = 1, Q = [], F = [])
 
         # lower right block
         lr = view(tmp, nf+1:sl, nf+1:sl)
-        BLAS.gemm!('N', 'T', α, g, g, β, lr)
+        matmul!(lr, g, g')
         for i in nf+1:sl
             tmp[i, i] += λ
         end
@@ -141,16 +140,11 @@ function snp_blup(g, p; σₐ² = 1, σₑ² = 1, Q = [], F = [])
         tmp
     end
     rhs = begin
-        tmp = Array{Float32, 1}(undef, sl)
-        y = convert.(Float32, p)
-        # Fixed effects
-        uv = view(tmp, 1:nf)
-        BLAS.gemv!('T', α, X, y, β, uv)
-
-        # Random effecs (may be some fixed QTL also)
-        lv = view(tmp, nf+1:sl)
-        BLAS.gemv!('N', α, g, y, β, lv)
-        tmp
+        tmp = zeros(Float32, sl)
+        y = reshape(p, length(p), :)
+        tmp[1:nf]     = matmul(X', y)
+        tmp[nf+1:end] = matmul(g, y)
+        vec(tmp)
     end
 
     # Solving
@@ -161,3 +155,25 @@ function snp_blup(g, p; σₐ² = 1, σₑ² = 1, Q = [], F = [])
 end
 
 # Other methods, e.g., bayes-α, β, γ, π, may be added.
+#=
+"""
+    function evaluate(gsdat)
+---
+Vector `gsdat` has data of `1+` traits for evaluation with SNP BLUP method.
+Each trait has `g`enotypes, `p`henotypes, trait `σₐ²`, `σₑ²`, 
+`w`eight for a select index, `f`ixed effect vector, and `s`NP to be
+fitted as fixed effects.
+
+Returns `EBV(1)⋅w₁ + EBV(2)⋅w₂ + ...` of ID in `g₁` as a vector
+"""
+function evaluate(gsdat)
+    t = gsdat[1]                # shorthand for production data
+    f1, s1 = snp_blup(t.g, t.p, σₐ² = t.a, σₑ² = t.e, Q = t.s, F = t.f)
+    w1 = t.w
+    t = gsdat[2]                # shorthand for challenge data
+    f2, s2 = snp_blup(t.g, t.p, σₐ² = t.a, σₑ² = t.e, Q = t.s, F = t.f)
+    t = gsdat[2]
+    w2 = t.w
+    
+end
+=#

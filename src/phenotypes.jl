@@ -10,7 +10,7 @@ Merge alleles to genotypes.
 function alleles2gt(snp)
     nlc, nid = size(snp)
     nid ÷= 2
-    g = Array{Float32, 2}(undef, nlc, nid)
+    g = Array{Int8, 2}(undef, nlc, nid)
     @inbounds for i in 1:nid
         g[:, i] = snp[:, 2i-1] + snp[:, 2i]
     end
@@ -60,11 +60,11 @@ end
     function phenotype(snp, qtl, h², threshold)
 ---
 This function returns phenotypes of a binary trait.
-σₑ² is determined assuming σₐ²=1 in the base population.
+`σₑ²` is determined assuming `σₐ² = 1` in the base population.
 This result can also serve as a challenge result.
 Assuming the liability is for resisitance.
-ID with a `phenotype < qtl.mean + threshold` are incident.
-That is an ID is affected and phenotype is 1.
+ID with a `phenotype < qtl.mean + threshold` are incident/dead.
+That is an ID is alive and phenotype is 1.
 """
 function phenotype(snp, qtl, h², percentage)
     bv, ph = phenotype(snp, qtl, h²)
@@ -72,7 +72,7 @@ function phenotype(snp, qtl, h², percentage)
     ni = length(ph)
     bn = zeros(Int8, ni)
     @inbounds for i in 1:ni
-        (ph[i] < th) && (bn[i] = 1)
+        (ph[i] > th) && (bn[i] = 1)
     end
     return bv, bn
 end

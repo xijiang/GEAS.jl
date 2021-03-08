@@ -6,20 +6,6 @@ It can also serve as a template pipeline.
 """
 function workflow(; debug = true)
     copyright()
-    # It is better to setup simulation scenarios with a dictionary
-    # Then pass it as a named tuple, so that we can conveniantly use `x.y`
-    # using a dictionary also makes it easy to modify parameter structure.
-    # the keys in this dictionry must exist to setup a simulation
-    Parameters = Dict(:nSire=> 125,
-                      :nDam => 250, # male:female = 1:2
-                      :nSib => 100,
-                      :nC7e => 40, # number of sib to be challenged
-                      :nG8n => 1, # number of generations
-                      :nQTL => [1000, 1000],
-                      :h²   => [.5, .5],
-                      :p8e  => .5, # percentage of affected in the binary trait
-                      )
-    par = (; Parameters...)     # named tuple.  contents as above
     
     if debug
         @info join(["Debug mode",
@@ -30,9 +16,13 @@ function workflow(; debug = true)
         # read back real data
         @load "dat/run/base.jld2"                           # =>base
         #base = deserialize(joinpath(dat_dir, "run/ns.ser")) # to save time
+        nQTL = [1000, 1000]
+        qtl = sim_QTL(base, nQTL...)
 
         println("\n")
-        test_evaluation(base)
+        for nsib in [10, 20, 40]
+            test_2_breeding(base, qtl, nsib)
+        end
     else
         @info join(["Running in release mode",
                     "STEP I: Preparing base",
@@ -47,7 +37,6 @@ function workflow(; debug = true)
         @time gt600()           # -> c.vcf.gz
         @time base = vcf2dic(joinpath(dat_dir, "run/c.vcf.gz"))
         @time serialize(joinpath(dat_dir, "run/ns.ser"), base)
-        #using JLD2
         @save joinpath(dat_dir, "run/base.jld2") base
         @info join(["",
                     "STEP II: The breeding program",

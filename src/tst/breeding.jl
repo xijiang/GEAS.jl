@@ -1,4 +1,38 @@
 """
+    function test_2_breeding(base, qtl, nsib)
+---
+- 100 sires, 200 dams
+- sibship size: 10, 20, 40 for both produciton and challenge group
+- edit 20,000 fertilized eggs with a rate
+  * also chech Hicky's editing method
+- compare
+  * no editing
+  * editing
+- order QTL on `2pqa²`.
+- equal weights on both traits.
+- 2021-March-06
+"""
+function test_2_breeding(base, qtl, nsib)
+    # It is better to setup simulation scenarios with a dictionary
+    # Then pass it as a named tuple, so that we can conveniantly use `x.y`
+    # using a dictionary also makes it easy to modify parameter structure.
+    # the keys in this dictionry must exist to setup a simulation
+    Parameters = Dict(:nSire=> 100,
+                      :nDam => 200, # male:female = 1:2
+                      :nSib => 2nsib,
+                      :nC7e => nsib, # number of sib to be challenged
+                      :nG8n => 10, # number of generations
+                      :nQTL => [1000, 1000],
+                      :h²   => [.5, .5],
+                      :p8e  => .5, # percentage of affected in the binary trait
+                      :e19e => .8  # edit_successsful_rate
+                      )
+    par = (; Parameters...)     # named tuple.  contents as above
+    prd = breeding_program(base, par, qtl)
+    serialize(joinpath(dat_dir, "run/$nsib.ser"))
+end
+
+"""
     function test_breeding()
 ---
 This is a independent function.  It tests selection on
@@ -21,7 +55,8 @@ function test_breeding()
     par = (; Parameters...)     # named tuple.  contents as above
     
     # read back real data
-    base = deserialize(joinpath(dat_dir, "run/ns.ser")) # to save time
+    #base = deserialize(joinpath(dat_dir, "run/ns.ser")) # to save time
+    @load "dat/run/base.jld2"
     
     # general parameters
     qtl = sim_QTL(base, par.nQTL...)

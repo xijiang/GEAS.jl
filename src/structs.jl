@@ -1,3 +1,11 @@
+"""
+QTL parameters.
+- **pos**: QTL location indices of the SNPs
+- **effect**: effects of allele `1`, of each QTL
+- **rank**: rank high -> low on `2pqa²`
+- **mean::Float64**: mean of the base population
+- **max::Float64**: TBV of an ideal ID from the base
+"""
 struct QTL
     pos
     effect
@@ -6,6 +14,7 @@ struct QTL
     max::Float64
 end
 
+#=
 """
     struct Breeding
 ---
@@ -34,3 +43,24 @@ struct Breeding
     nc::Int                     # number of sibs for challenge test
     th::Float64                 # threshold for the binary trait. e.g., 0 -> half incdn.
 end
+
+"""
+Data for genomic selection, SNP BLUP method.
+- **g**: genotypes of value 0, 1, or 2, of nSNP × nID
+- **p**: phenotypes, nID × 1
+- **a**: overall genetic variance
+- **e**: overall environmental variance
+- **s**: SNP loci to be fitted as fixed effects
+- **f**: fixed effect vector with integer levels
+- **w**: weight on this trait
+"""
+struct GS_dat
+    g                           # genotypes of value 0, 1, or 2, of nSNP × nID
+    p                           # phenotypes, nID × 1
+    a                           # overall genetic variance
+    e                           # overall environmental variance
+    s                           # SNP loci to be fitted as fixed effects
+    f                           # fixed effect vector with integer levels
+    w                           # weight on this trait
+end
+=#

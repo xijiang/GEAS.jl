@@ -1,4 +1,41 @@
 """
+    function test_2_eval()
+---
+This is to test the `evaluation` function on two traits.
+Only `base` genotypes were used.
+The first 400 are for production.
+The rest 200 are for challenge.
+"""
+function test_2_eval()
+    @load "dat/run/base.jld2"
+    qtl = sim_QTL(base, 500, 500)
+    snp1 = base[:hap][:, 1:600] # used for production
+    snp2 = base[:hap][:, 601:end] # used for challenge
+
+    # bv and phenotypes for the production pop
+    b1, p1 = phenotype(snp1, qtl[1], .5)
+
+    # and also simulate bv and phenotypes as if challenged
+    b3, p3 = phenotype(snp1, qtl[2], .5, .5)
+
+    # bv and phenotypes for the challenge pop.
+    b2, p2 = phenotype(base[:hap][:, 601:end], qtl[2], .5, .5)
+
+    # SNP effects for these two pops.
+    g1 = alleles2gt(snp1)       # genotypes of 0, 1, and 2
+    g2 = alleles2gt(snp2)
+    m1, s1 = snp_blup(g1, p1)
+    m2, s2 = snp_blup(g2, p2)
+
+    ebv1 = g1's1 .+ m1
+    ebv2 = g2's2 .+ m2
+    ebv3 = g1's2 .+ m2
+    println(cor(ebv1, b1), ' ', cor(ebv1, p1))
+    println(cor(ebv2, b2), ' ', cor(b2, p2))
+    println(cor(ebv3, b1), ' ', cor(ebv3, p1))
+end
+
+"""
     function test_eval()
 ---
 Create F₁ to test genomic seleciton methods.
@@ -10,8 +47,8 @@ function test_eval(; just_one = false)
     nSire, nDam, nSib = 200, 400, 42
     h² = [.5, .5]
     par = begin
-        nqtl = repeat([100, 500, 1000], inner=5)
-        nclg = repeat([37, 32, 22, 12, 2], 3)
+        nqtl = repeat([100, 500, 1000], inner=3)
+        nclg = repeat([32, 22, 2], 3)
         [nqtl nclg]
     end
     ped = random_mate(nSire, nDam, nSib)

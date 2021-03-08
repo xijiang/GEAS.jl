@@ -96,3 +96,11 @@ Please refer https://guides.github.com/introduction/flow/.
 
 ## Issues
 We can discuss the package with `issues` on the `GEAS` webpage.
+
+## Performanc
+Please add
+```bash
+export JULIA_NUM_THREADS=12
+```
+in you `~/.bashrc`.
+You can replace `12` with other numbers that suit your machine.
