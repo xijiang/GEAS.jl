@@ -20,8 +20,10 @@ function workflow(; debug = true)
         qtl = sim_QTL(base, nQTL...)
 
         println("\n")
-        for nsib in [10, 20, 40]
-            test_2_breeding(base, qtl, nsib)
+        for weight in [3, 6, 9, 12]
+            for nsib in [10, 20, 40]
+                test_2_breeding(base, qtl, nsib, weight)
+            end
         end
     else
         @info join(["Running in release mode",

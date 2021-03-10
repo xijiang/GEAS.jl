@@ -182,7 +182,6 @@ function breeding_program(base, par, qtl)
         # OBS!!!
         # select ID for nuclear from ig-1 on data of all previous generations
         val = begin             # scores for selective candidates
-            tmp = GS_dat[]
             # the production trait
             g1 = alleles2gt(view(snp₁, :, 1:f3))
             p1 = select(prd[prd.g8n .< ig, :], :p7e).p7e
@@ -195,10 +194,11 @@ function breeding_program(base, par, qtl)
                     f = select(clg[clg.g8n .< ig, :], :g8n).g8n
                     snp_blup(g2, p2, σₐ² = .125, σₑ² = .125, F=f)
                 else
-                    snp_blup(g2, p2, σₐ² = .125, σₑ² = .125)
+                    #snp_blup(g2, p2, σₐ² = .125, σₑ² = .125) # test 1
+                    snp_blup(g2, p2) # test 2
                 end  # as challenge always kills a constant proportion
             end
-            g1's1 + g2's2
+            g1's1 + g2's2 .* par.w4t
         end
         
         df = select(prd[(prd.g8n .== ig-1), :], :id, :sex)

@@ -12,7 +12,7 @@
 - equal weights on both traits.
 - 2021-March-06
 """
-function test_2_breeding(base, qtl, nsib)
+function test_2_breeding(base, qtl, nsib, weight)
     # It is better to setup simulation scenarios with a dictionary
     # Then pass it as a named tuple, so that we can conveniantly use `x.y`
     # using a dictionary also makes it easy to modify parameter structure.
@@ -25,11 +25,46 @@ function test_2_breeding(base, qtl, nsib)
                       :nQTL => [1000, 1000],
                       :h²   => [.5, .5],
                       :p8e  => .5, # percentage of affected in the binary trait
-                      :e19e => .8  # edit_successsful_rate
+                      :e19e => .8, # edit_successsful_rate
+                      :w4t  => weight # weight on the binary trait EBV
                       )
     par = (; Parameters...)     # named tuple.  contents as above
     prd = breeding_program(base, par, qtl)
-    serialize(joinpath(dat_dir, "run/$nsib.ser"), prd)
+    serialize(joinpath(dat_dir, "run/breeding/w/$weight-$nsib.ser"), prd)
+end
+
+"""
+    function sum_2_breeding()
+---
+Function `test_2_breeding` of v0.5.2 resulted in `breeding/{1,2,3}'.
+This function is to summarize the results in 9 files.
+Below was done Mar. 08, 2021
+"""
+function sum_2_breeding()
+    for i in 1:3
+        m = Float64[]
+        for sib in [10, 20, 40]
+            dat = deserialize(joinpath(dat_dir, "run/breeding/$i/$sib.ser"))
+            for d in groupby(dat, :g8n)
+                push!(m, mean(d.tbv))
+                push!(m, mean(d.t2c))
+            end
+        end
+        m = reshape(m, 6, :)
+        t = reshape(m[1:20], 2, :)
+        t .-= t[:, 1]           # set the first generation as 0.
+        plot(t[1, :], label="Production-10-sibs", dpi=300, legend=:topleft)
+        plot!(t[2, :], label="Challenge-10-sibs")
+        t = reshape(m[21:40], 2, :)
+        t .-= t[:, 1]           # set the first generation as 0.
+        plot!(t[1, :], label="Production-20-sibs")
+        plot!(t[2, :], label="Challenge-20-sibs")
+        t = reshape(m[41:60], 2, :)
+        t .-= t[:, 1]           # set the first generation as 0.
+        plot!(t[1, :], label="Production-40-sibs")
+        plot!(t[2, :], label="Challenge-40-sibs")
+        savefig(joinpath(dat_dir, "run/breeding/fig/$i.pdf"))
+    end
 end
 
 """
