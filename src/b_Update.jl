@@ -120,4 +120,5 @@ function Update()
     isdir(bin_dir) || mkdir(bin_dir)
     update_beagle()
     update_plink()
+    update_macs()
 end
