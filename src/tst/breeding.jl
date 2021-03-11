@@ -34,6 +34,43 @@ function test_2_breeding(base, qtl, nsib, weight)
 end
 
 """
+    function sum_w_breeding()
+---
+Summarize genetic improvement using different weight on GEBV of binary trait.
+The conclusion is `weight` should be some where between 2 and 3.
+- 2021-Mar-11
+"""
+function sum_w_breeding()
+    sib    = [10, 20, 40]
+    weight = [3, 6, 9, 12]
+    ave = Array{Float64, 4}(undef, 3, 4, 2, 10)
+    for i in 1:3
+        for j in 1:4
+            rst = deserialize("dat/run/breeding/w/$(weight[j])-$(sib[i]).ser")
+            k = 1
+            for d in groupby(rst, :g8n)
+                ave[i, j, 1, k] = mean(d.tbv)
+                ave[i, j, 2, k] = mean(d.t2c)
+                k += 1
+            end
+        end
+    end
+    for i in 1:3
+        ave[i, 1, 1, :] .-= ave[i, 1, 1, 1]
+        plot(ave[i, 1, 1, :], label="prd-$(sib[i])s-3w", dpi=300, legend=:topleft)
+        for j in 2:4
+            ave[i, j, 1, :] .-= ave[i, j, 1, 1]
+            plot!(ave[i, j, 1, :], label="prd-$(sib[i])s-$(weight[j])w")
+        end
+        for j in 1:4
+            ave[i, j, 2, :] .-= ave[i, j, 2, 1]
+            plot!(ave[i, j, 2, :], label="tst-$(sib[i])s-$(weight[j])w", linestyle=:dash)
+        end
+        savefig(joinpath(dat_dir, "run/breeding/w/sib-$(sib[i]).pdf"))
+    end
+end
+
+"""
     function sum_2_breeding()
 ---
 Function `test_2_breeding` of v0.5.2 resulted in `breeding/{1,2,3}'.

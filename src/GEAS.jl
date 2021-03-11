@@ -25,6 +25,7 @@ include("structs.jl")
 include("phenotypes.jl")
 include("breeding.jl")
 include("evaluation.jl")
+include("sim-base.jl")
 
 # Test files
 # all functions in files below have a prefix `test_`.
