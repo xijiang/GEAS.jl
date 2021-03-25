@@ -70,6 +70,7 @@ function vcf2dic(vcf)
     end
 end
 
+#=
 """
     function sim_base(nChr)
 ---
@@ -122,3 +123,4 @@ function sim_base(nID, nChr, nSNP; nBP = 100_000_000, mt=0.00001, rc=0.000004)
         # sample SNP & write.
     end
 end
+=#

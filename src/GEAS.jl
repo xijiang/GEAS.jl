@@ -15,6 +15,7 @@ dat_dir = joinpath(prj_dir, "dat")
 bin_dir = joinpath(prj_dir, "bin")
 plink   = joinpath(bin_dir, "plink")
 beagle  = joinpath(bin_dir, "beagle.jar")
+macs    = joinpath(bin_dir, "macs")
 
 include("workflow.jl")
 include("genotypes.jl")

@@ -165,7 +165,7 @@ Disk I/O is avoided as much as possible.
 ## Memo
 A full pedigree should include size(base) rows of `0 0`.
 """
-function breeding_program(base, par, qtl)
+function breeding_program(base, par, qtl; edit=false)
     # general parameters
     @info "Create storage and generation one"
     snp₁, snp₂, prd, clg, f1, f2, f3, f4 = # f: from

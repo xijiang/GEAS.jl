@@ -1,7 +1,7 @@
 name = "GEAS"
 uuid = "5cf3e21f-036f-4641-8cf9-e92a1cf54361"
 authors = ["Xijiang Yu <xijiang@users.noreply.github.com>"]
-version = "0.5.5"
+version = "0.6.0"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"

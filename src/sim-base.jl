@@ -1,95 +1,105 @@
 """
-    function sim_base()
+    function read_macs(file)
 ---
-Simulate a base population with [`macs`](https://github.com/gchen98/macs).
+Read genotypes and physical positions from simulation results of `macs`.
+Returns
+- genotypes of Array{Int8, 2}
+- physical positions and
+- allele frequencies
 """
-function sim_base()
-    ne1d = `macs 4000 100000000 -t 0.00001 -r 0.000004
-                -eN    0.03   1.75
-                -eN    0.06   2.00
-                -eN    0.13   3.50
-                -eN    0.25   5.00
-                -eN    0.50   7.00
-                -eN    0.75   8.20
-                -eN    1.00   8.50
-                -eN    1.25   9.00
-                -eN    1.50  10.00
-                -eN    1.75  11.00
-                -eN    2.00  12.75
-                -eN    2.25  13.00
-                -eN    2.50  12.00
-                -eN    5.00  20.00
-                -eN    7.50  25.00
-                -eN   10.00  30.00
-                -eN   12.50  32.00
-                -eN   15.00  35.00
-                -eN   17.50  38.00
-                -eN   20.00  40.00
-                -eN   22.50  42.00
-                -eN   25.00  45.00
-                -eN   50.00  54.56
-                -eN  100.00  73.67
-                -eN  150.00  92.78
-                -eN  200.00 111.90
-                -eN  250.00 131.01
-                -eN  500.00 226.58
-                -eN 1000.00 417.72
-                -eN 1500.00 608.86
-                -eN 2000.00 800.00`
-    ne1k = `macs 4000 100000000 -t 0.0001 -r 0.00004
-                -eN   0.50  2.00
-                -eN   0.75  2.50
-                -eN   1.00  3.00
-                -eN   1.25  3.20
-                -eN   1.50  3.50
-                -eN   1.75  3.80
-                -eN   2.00  4.00
-                -eN   2.25  4.20
-                -eN   2.50  4.50
-                -eN   5.00  5.46
-                -eN  10.00  7.37
-                -eN  15.00  9.28
-                -eN  20.00 11.19
-                -eN  25.00 13.10
-                -eN  50.00 22.66
-                -eN 100.00 41.77
-                -eN 150.00 60.89
-                -eN 200.00 80.00`
-    run(pipeline(ne1d,
-                 stdout = joinpath(dat_dir, "run/sim/t.txt"),
-                 stderr = joinpath(dat_dir, "run/sim/d.txt")))
+function read_macs(file)
+    gt = Int8[]
+    ps = Float64[]
+    open(file, "r") do io
+        for line in eachline(io)
+            (line[1:4] ≠ "SITE") && continue
+            _, _, p, _, g = split(line)
+            push!(ps, parse(Float64, p))
+            append!(gt, parse.(Int8, collect(g)))
+        end
+    end
+    nlc = length(ps)
+    nhp = length(gt) ÷ nlc
+    gt = reshape(gt, nhp, :)'
+    fq = mean(gt, dims=2)
+    return gt, ps, fq
 end
 
-    #=
-    2>debug.txt | msformatter > haplotypes.txt
-tail --lines +6 haplotypes.txt >Intermediate.txt
-tail --lines +2 Intermediate.txt > MacsHaplotypes.txt
-head --lines 1 Intermediate.txt > TempMap.txt
-tail --bytes=+11 TempMap.txt > PhysicalMapInput.txt
-grep segsites haplotypes.txt > TempSegSites.txt
-tail --bytes=+10 TempSegSites.txt > SegSites.txt
-rm Intermediate.txt
-rm TempMap.txt
-rm TempSegSites.txt
-sed -i 's/0/ 0/g' MacsHaplotypes.txt
-sed -i 's/1/ 1/g' MacsHaplotypes.txt
-cp SegSites.txt FinishedMacs.txt
+"""
+    function sample_macs(frq, maf, n)
+---
+Sample `n` loci of `maf` according `frq`. 
+A warning message is given if not enough loci.
+"""
+function sample_macs(frq, maf, n)
+    nlc = length(frq)
+    df = DataFrame(ix = 1:nlc, freq = vec(frq))
+    ix = filter(row -> maf < row.freq < 1 - maf, df).ix
+    (length(ix) < n) && return ix
+    return sort(shuffle(ix)[1:n])
+end
 
+"""
+    function sim_base(h, c, l, s; t = 1e-5, r = 1e-5, maf=0.05)
+---
+Simulate a base population with [`macs`](https://github.com/gchen98/macs).
+This function will simulate a population of 
+- `h` haplotypes, or `h/2` individuals
+- `c` chromosomes, each individual
+- each chromosome of `l` base pairs, 
+- each chromosome of `s` number of SNP
+- loci of maf<0.05, by default, are excluded
 
-#### For $N_e=1000$
-./ \
-       2>debug.txt |
-    ./msformatter > haplotypes.txt
-tail --lines +6 haplotypes.txt >Intermediate.txt
-tail --lines +2 Intermediate.txt > MacsHaplotypes.txt
-head --lines 1 Intermediate.txt > TempMap.txt
-tail --bytes=+11 TempMap.txt > PhysicalMapInput.txt
-grep segsites haplotypes.txt > TempSegSites.txt
-tail --bytes=+10 TempSegSites.txt > SegSites.txt
-rm Intermediate.txt
-rm TempMap.txt
-rm TempSegSites.txt
-sed -i 's/0/ 0/g' MacsHaplotypes.txt
-sed -i 's/1/ 1/g' MacsHaplotypes.txt
-cp SegSites.txt FinishedMacs.txt
-=#
+`s` = min(s, number of simulated SNP fitered with `maf`,
+which will be sampled from the simulated results.
+
+## Example
+```julia
+GEAS.sim_base(1200, 29, 1e8, 2000)
+```
+will simulate 600 ID.  Each ID has 29 chromosome.
+Each chromsome is of 1e8 base pairs.
+Returns 
+"""
+function sim_base(h, c, l, s; t = 1e-5, r = 1e-5, maf=0.05)
+    @info "Simulate a base population with `macs`"
+    cmd = `$macs $h $l -t $t -r $r`
+    sim = joinpath(dat_dir, "run/sim")
+    hps = joinpath(sim, "haps.txt")
+    isdir(sim) || mkpath(sim)
+    nlc = c * s
+    # base is not big, BitArray can be slow.
+    # the real base is also of Int8. so
+    gt  = Array{Int8, 2}(undef, nlc, h)
+    # other simulation results
+    chr = Array{Int, 1}(undef, nlc)
+    bp  = Array{Int, 1}(undef, nlc)
+    r   = Array{Float64, 1}(undef, nlc)
+    from = 1
+    totl = 0                    # in case not enough SNP simulated
+    print("Simulating chromosome: ")
+    for ic in 1:c
+        print(" $ic")
+        run(pipeline(cmd,
+                     stderr = joinpath(sim, "debug.log"),
+                     stdout = hps))
+        # chromsome genotype, physical positions, frequences
+        cg, cp, cf = read_macs(hps) # c: current chromosome
+        ix = sample_macs(cf, maf, s)
+        cs = length(ix)         # check if enough loci sampled
+        cs < s && @warn "Less than expected SNP sampled on chromosome $ic"
+        totl += cs
+        gt[from:totl, :] = cg[ix, :] # add GT block
+        chr[from:totl] = repeat([ic], cs)
+        bp[from:totl] = Int.(floor.(cp[ix] .* l))
+        from += cs
+    end
+    println()
+    begin                       # create the dictionary and return
+        pos = [chr bp]
+        r   = haldane(pos)
+        Dict(:pos => pos,
+             :r => r,
+             :hap => Bool.(gt))
+    end
+end
