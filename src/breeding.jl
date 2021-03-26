@@ -198,7 +198,7 @@ function breeding_program(base, par, qtl; edit=false)
                     snp_blup(g2, p2) # test 2
                 end  # as challenge always kills a constant proportion
             end
-            g1's1 + g2's2 .* par.w4t
+            g1's1 + g1's2 .* par.w4t
         end
         
         df = select(prd[(prd.g8n .== ig-1), :], :id, :sex)
@@ -210,6 +210,7 @@ function breeding_program(base, par, qtl; edit=false)
         # simulate current generation
         ped = random_mate(nuclear, nSire, nDam, nSib)
         nxt = gdrop(snp₁, ped, base[:r])
+        edit && gedit(nxt, qtl[2], par.e19e)
         bv₁, p₁ = phenotype(nxt, qtl[1], par.h²[1])
         bv₂, p₂ = phenotype(nxt, qtl[2], par.h²[2], par.p8e)
         

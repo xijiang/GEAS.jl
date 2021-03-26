@@ -3,6 +3,24 @@
 ---
 This records the framework of the package.
 It can also serve as a template pipeline.
+
+## Parameter example
+- The keys must be of these names
+
+```julia
+    Parameters = Dict(:nSire=> 100,
+                      :nDam => 200, # male:female = 1:2
+                      :nSib => 2nsib,
+                      :nC7e => nsib, # number of sib to be challenged
+                      :nG8n => 10, # number of generations
+                      :nQTL => [1000, 1000],
+                      :h²   => [.5, .5],
+                      :p8e  => .5, # percentage of affected in the binary trait
+                      :e19e => .8, # edit_successsful_rate
+                      :w4t  => weight # weight on the binary trait EBV
+                      )
+    par = (; Parameters...)     # named tuple.  contents as above
+```
 """
 function workflow(; debug = true)
     copyright()
