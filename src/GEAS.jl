@@ -27,11 +27,15 @@ include("phenotypes.jl")
 include("breeding.jl")
 include("evaluation.jl")
 include("sim-base.jl")
+include("gedit.jl")
 
 # Test files
 # all functions in files below have a prefix `test_`.
+# These can be excluded in the release version
 include("tst/breeding.jl")
 include("tst/evaluation.jl")
+include("tst/dropping.jl")
+include("tst/editing.jl")
 
 copyright()
 

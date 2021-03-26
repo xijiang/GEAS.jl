@@ -36,13 +36,7 @@ function sim_QTL(base, nqtl...; shape = 0.4)
         a ./= sqrt(vₐ)          # scale allele effect, such that vₐ = 1
         m = mean(Q'a)           # base population expectation
         t = 2sum(a[a.>0]) - m   # expectation of an ideal ID
-        rank = begin
-            p = mean(Q, dims=2) ./2
-            q = 1 .- p
-            x = 2 .* p .* q .* a .* a
-            sortperm(vec(x), rev=true)
-        end
-        push!(qinfo, QTL(loci, a, rank, m, t))
+        push!(qinfo, QTL(loci, a, m, t))
     end
     qinfo
 end

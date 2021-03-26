@@ -2,14 +2,12 @@
 QTL parameters.
 - **pos**: QTL location indices of the SNPs
 - **effect**: effects of allele `1`, of each QTL
-- **rank**: rank high -> low on `2pqa²`
 - **mean::Float64**: mean of the base population
 - **max::Float64**: TBV of an ideal ID from the base
 """
 struct QTL
     pos
     effect
-    rank                        # rand high -> low on 2pqa^2
     mean::Float64               # mean and max are about the base population
     max::Float64
 end
