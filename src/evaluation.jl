@@ -86,15 +86,20 @@ Returns E(population) and  a vector of SNP effects.
 
 **Warning**: I use Float32 to save memory.
 This will be changed if to run on a bigger machine.
+
+`function snp_blup(g, p; σₐ² = 1, σₑ² = 1, Q = [], F = [])`
+changed to
+`function snp_blup(g, p, h²; Q = [], F = [])`, on 2021-Apr.-1
 """
-function snp_blup(g, p; σₐ² = 1, σₑ² = 1, Q = [], F = [])
+function snp_blup(g, p, h²; Q = [], F = [])
     nlc, nid = size(g)
     @info join(["",
                 "SNP-BLUP",
                 "  $nlc SNP",
                 "  $nid ID"], "\n")
 
-    λ = (σₑ²/σₐ²) * nlc
+    # λ = (σₑ²/σₐ²) * nlc  # changed to below
+    λ = (1. - h²)/h² * nlc
     X = begin           # incident matrix for fixed effects, include μ
         if length(F) > 0
             fxmat(F)

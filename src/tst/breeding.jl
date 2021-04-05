@@ -17,19 +17,21 @@ function test_2_breeding(base, qtl, nsib, weight)
     # Then pass it as a named tuple, so that we can conveniantly use `x.y`
     # using a dictionary also makes it easy to modify parameter structure.
     # the keys in this dictionry must exist to setup a simulation
-    Parameters = Dict(:nSire=> 100,
-                      :nDam => 200, # male:female = 1:2
-                      :nSib => 2nsib,
-                      :nC7e => nsib, # number of sib to be challenged
-                      :nG8n => 10, # number of generations
-                      :nQTL => [1000, 1000],
-                      :h²   => [.5, .5],
-                      :p8e  => .5, # percentage of affected in the binary trait
-                      :e19e => .8, # edit_successsful_rate
-                      :w4t  => weight # weight on the binary trait EBV
-                      )
-    par = (; Parameters...)     # named tuple.  contents as above
-    prd = breeding_program(base, par, qtl)
+    par = begin
+        Parameters = Dict(:nSire=> 100,
+                          :nDam => 200, # male:female = 1:2
+                          :nSib => 2nsib,
+                          :nC7e => nsib, # number of sib to be challenged
+                          :nG8n => 10,   # number of generations
+                          :nQTL => [1000, 1000],
+                          :h²   => [.5, .5],
+                          :p8e  => .5, # percentage of affected in the binary trait
+                          :e19e => .8, # edit_successsful_rate
+                          :w4t  => weight # weight on the binary trait EBV
+                          )
+        (; Parameters...)       # named tuple.  contents as above
+    end
+    prd, _ = breeding_program(base, par, qtl)
     serialize(joinpath(dat_dir, "run/breeding/w/$weight-$nsib.ser"), prd)
 end
 

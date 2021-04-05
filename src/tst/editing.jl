@@ -41,6 +41,6 @@ function edit_2021_03_26()
     base = sim_base(1200, 29, 1e8, 1725)
     qtl = sim_QTL(base, par.nQTL...)
     
-    p1 = breeding_program(base, par, qtl, edit=false)
-    p2 = breeding_program(base, par, qtl, edit=true)
+    p1, _ = breeding_program(base, par, qtl, edit=false)
+    p2, _ = breeding_program(base, par, qtl, edit=true)
 end

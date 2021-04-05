@@ -1,7 +1,7 @@
 module GEAS
 
 using LinearAlgebra, Dates, HTTP, DataFrames, Random, Distributions,
-    Serialization, Statistics, StatsPlots, JLD2
+    Serialization, Statistics, StatsPlots, JLD2, SparseArrays
 import Octavian: matmul, matmul!
 export workflow
 
@@ -30,12 +30,15 @@ include("sim-base.jl")
 include("gedit.jl")
 
 # Test files
-# all functions in files below have a prefix `test_`.
-# These can be excluded in the release version
+# all functions in files below are in `src/tst`.
+# These can be excluded in the release version.
+# but can serve as examples.
+
 include("tst/breeding.jl")
 include("tst/evaluation.jl")
 include("tst/dropping.jl")
 include("tst/editing.jl")
+include("tst/make-a-selection-sample.jl")
 
 copyright()
 

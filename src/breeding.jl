@@ -78,7 +78,7 @@ end
 Determine array sizes for one-go genotype storage.
 This is to avoid too much memory allocation, 
 and garbage collection.
-Above also cause program crash.
+GC may also cause program crash.
 """
 function create_storage(base, par, qtl)
     # Generation 0:
@@ -129,14 +129,14 @@ function create_storage(base, par, qtl)
         TBV[1:n₁] = bv₁[ip]
         T2C[1:n₁] = bv₂[ip]
         p7e[1:n₁] = p₁[ip]
-        DataFrame(g8n=g8n,
-                  id=id,
-                  sex=sex,
-                  sir=Sir,
-                  dam=Dam,
-                  tbv=TBV,
-                  t2c=T2C,
-                  p7e=p7e)
+        DataFrame(g8n = g8n,
+                  id  = id,
+                  sex = sex,
+                  sir = Sir,
+                  dam = Dam,
+                  tbv = TBV,    # TBV for the production trait
+                  t2c = T2C,    # TBV for the binary trait
+                  p7e = p7e)    # phenotype for the production trait
     end
 
     #- The challenged ones
@@ -175,6 +175,11 @@ function breeding_program(base, par, qtl; edit=false)
         par.nSire, par.nDam, par.nSib, par.nC7e, par.p8e, par.nG8n
     ip, ic, hp, hc = test_sets(nDam, nSib, nChallenge)
     l1, l2, l3, l4 = length.((ip, ic, hp, hc)) # lengths of generation 2+
+    h2 = begin                                 # for the binary trait
+        p = par.p8e             # percentage killed/survied
+        z = pdf(Normal(), p)
+        par.h²[2]*z*z/(p*(1-p)) # ~0.25 here
+    end
     for ig in 2:generation
         @info "generation $ig"
         # prepare for evaluation
@@ -185,18 +190,14 @@ function breeding_program(base, par, qtl; edit=false)
             # the production trait
             g1 = alleles2gt(view(snp₁, :, 1:f3))
             p1 = select(prd[prd.g8n .< ig, :], :p7e).p7e
-            m1, s1 = snp_blup(g1, p1)
+            m1, s1 = snp_blup(g1, p1, par.h²[1])
             # the challenge trait
             g2 = alleles2gt(view(snp₂, :, 1:f4))
             p2 = select(clg[clg.g8n .< ig, :], :p7e).p7e
             m2, s2 = begin
-                if ig>2         # generation as fixed effects
-                    f = select(clg[clg.g8n .< ig, :], :g8n).g8n
-                    snp_blup(g2, p2, σₐ² = .125, σₑ² = .125, F=f)
-                else
-                    #snp_blup(g2, p2, σₐ² = .125, σₑ² = .125) # test 1
-                    snp_blup(g2, p2) # test 2
-                end  # as challenge always kills a constant proportion
+                # generation as fixed effects
+                f = select(clg[clg.g8n .< ig, :], :g8n).g8n
+                snp_blup(g2, p2, h2, F=f)
             end
             g1's1 + g1's2 .* par.w4t
         end
@@ -229,5 +230,116 @@ function breeding_program(base, par, qtl; edit=false)
         f3 += l3
         f4 += l4
     end
-    return prd
+
+    return prd, snp₁            # bitset snp is only of a few GiB.
+end
+
+"""
+    function bp_summary(prd, snp, qtl)
+---
+Summarize simulation results of the `b`reeding `p`rogram.
+The figures and tables will be saved with an initial 'bps-'.
+"""
+function bp_summary(prd, snp, qtl)
+    # construct pedigree
+    n₀ = length(
+        unique(
+            Matrix(
+                select(
+                    filter(row ->row.g8n ==1, prd), :sir, :dam))))
+    ped = begin                 # this was the way I recorded the pedigree
+        n = n₀ + nrow(prd)      # total ID number, including base
+        ped = zeros(Int32, n, 2) # the first `n₀` are automatically 0s
+        # parents of generation 1 refer to base
+        pm₁ = Matrix(select(filter(row -> row.g8n == 1, prd), :sir, :dam))
+        n₁ = size(pm₁)[1]
+        ped[n₀+1:n₀+n₁, :] = pm₁
+        # parents of generation 2+ are about descendants
+        pm₂ = Matrix(select(filter(row -> row.g8n > 1, prd), :sir, :dam))
+        pm₂ .+= n₀
+        ped[n₀+n₁+1:end, :] = pm₂
+        ped
+    end
+    
+    #=
+    mean_inbreeding = begin
+        A = A_matrix(ped)
+        ib = begin              # inbreeding coefficient
+            t = zeros(Float32, length(g8n))
+            for i in 1:length(g8n)
+                j = i + nbase
+                t[i] = A[j, j] - 1
+            end
+            DataFrame(g8n = g8n, ib = t)
+        end
+        combine(groupby(ib, :g8n), :ib => mean => :mib).mib
+    end
+
+    gp = groupby(prd, :g8n)
+    @info "Genetic variance and inbreeding over generations"
+    begin                                 # plot vₐ² trends of 2 traits
+        p = combine(gp, :tbv => var => :vprd)
+        b = combine(gp, :t2c => var => :vbin)
+        i = combine(gp, :i20t => mean => :inbreeding)
+        plot(p.vprd, label="Production", dpi=300)
+        plot!(b.vbin, label="Binary")
+        plot!(i.inbreeding, label="Inbreeding")
+        savefig("doc/fig/Va-inbreeding-changes.pdf")
+    end
+    @info join(["",
+                "QTL frequency changes",
+                "  - if negtive a, switch p to 1-p",
+                "  - bubble plot, sizes are with respect to |a|"], '\n')
+    =#
+end
+
+"""
+    function A_matrix(ped)
+---
+Give a matrix of 2 columns:
+- Sire
+- Dam
+
+With row number as ID number, this function return a **A** matrix.
+It is assumed that row number is the `ID` number.
+`Sire`s and `Dam`s are of integers less than their offspring `ID`.
+This function cannot deal very large pedigree, i.e.,
+with 32G momory, this function can only calculate a pedigree with
+~90k ID.
+With half precision, this can be ~130k.
+With double precision, this function can only handle ~65k ID.
+"""
+function A_matrix(ped)
+    n = size(ped, 1)
+    A = zeros(Float32, n, n)
+    for i in 1:n
+        ip, im = ped[i, :]      # ID i's pa and ma
+        A[i, i] = 1.            # below avoid swap
+        ip >0 && im >0 && (A[i, i] += .5(A[ip, im] + A[im, ip]))
+        for j in i+1:n          # upper triangular
+            jp, jm = ped[j, :]
+            jp > 0 && (A[i, j] += .5A[i, jp])
+            jm > 0 && (A[i, j] += .5A[i, jm])
+            A[j, i] = A[i, j]
+        end
+        i % 100 == 0 && (print("\t$i"))
+    end
+    A
+end
+
+"""
+    function kinship(ped, i, j)
+---
+This function is handy if just to calculate relationship of a few (pairs of) ID.
+It can also speed up by adding `Thread.@threads` before your pair loop.
+"""
+function kinship(ped, i, j)
+    (i == 0 || j == 0) && return 0
+    pa, ma = ped[i, :]          # used both for below and the last
+    i == j && (return 1 + .5kinship(ped, pa, ma))
+    if i < j
+        pa, ma = ped[j, :]
+        return .5(kinship(ped, i, pa) + kinship(ped, i, ma))
+    end
+    return .5(kinship(ped, j, pa) + kinship(ped, j, ma))
 end
