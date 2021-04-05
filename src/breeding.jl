@@ -49,30 +49,6 @@ function select_nuclear(df, nSire, nDam)
 end
 
 """
-    function gene_edit(g, l; p=1)
----
-Edit genotypes of the given ID on given QTL.
-As the effects I simulated are all positive,
-this will change the genotypes from `0` → `1`.
-If `0<p<1`, above editing from `0` → `1` will have a successful rate `p`.
-"""
-function gene_edit(g, l; p=1)
-    if 0<p<1
-        g[l, :] .= 1
-    else
-        t = view(g, :, l)
-        u, v = size(t)
-        for i in 1:u
-            for j in 1:v
-                if t[i, j] == 0 && rand() > p
-                    t[i, j] = 1
-                end
-            end
-        end
-    end
-end
-
-"""
     function create_storage(base, par)
 ---
 Determine array sizes for one-go genotype storage.
@@ -154,7 +130,7 @@ function create_storage(base, par, qtl)
 end
 
 """
-    function breeding_program(base, par, nsib)
+    function breeding_program(base, par, nsib; edit=false)
 ---
 Do the breeding with the given parameter `par`.
 I always breed the first generation separately.
@@ -232,114 +208,4 @@ function breeding_program(base, par, qtl; edit=false)
     end
 
     return prd, snp₁            # bitset snp is only of a few GiB.
-end
-
-"""
-    function bp_summary(prd, snp, qtl)
----
-Summarize simulation results of the `b`reeding `p`rogram.
-The figures and tables will be saved with an initial 'bps-'.
-"""
-function bp_summary(prd, snp, qtl)
-    # construct pedigree
-    n₀ = length(
-        unique(
-            Matrix(
-                select(
-                    filter(row ->row.g8n ==1, prd), :sir, :dam))))
-    ped = begin                 # this was the way I recorded the pedigree
-        n = n₀ + nrow(prd)      # total ID number, including base
-        ped = zeros(Int32, n, 2) # the first `n₀` are automatically 0s
-        # parents of generation 1 refer to base
-        pm₁ = Matrix(select(filter(row -> row.g8n == 1, prd), :sir, :dam))
-        n₁ = size(pm₁)[1]
-        ped[n₀+1:n₀+n₁, :] = pm₁
-        # parents of generation 2+ are about descendants
-        pm₂ = Matrix(select(filter(row -> row.g8n > 1, prd), :sir, :dam))
-        pm₂ .+= n₀
-        ped[n₀+n₁+1:end, :] = pm₂
-        ped
-    end
-    
-    #=
-    mean_inbreeding = begin
-        A = A_matrix(ped)
-        ib = begin              # inbreeding coefficient
-            t = zeros(Float32, length(g8n))
-            for i in 1:length(g8n)
-                j = i + nbase
-                t[i] = A[j, j] - 1
-            end
-            DataFrame(g8n = g8n, ib = t)
-        end
-        combine(groupby(ib, :g8n), :ib => mean => :mib).mib
-    end
-
-    gp = groupby(prd, :g8n)
-    @info "Genetic variance and inbreeding over generations"
-    begin                                 # plot vₐ² trends of 2 traits
-        p = combine(gp, :tbv => var => :vprd)
-        b = combine(gp, :t2c => var => :vbin)
-        i = combine(gp, :i20t => mean => :inbreeding)
-        plot(p.vprd, label="Production", dpi=300)
-        plot!(b.vbin, label="Binary")
-        plot!(i.inbreeding, label="Inbreeding")
-        savefig("doc/fig/Va-inbreeding-changes.pdf")
-    end
-    @info join(["",
-                "QTL frequency changes",
-                "  - if negtive a, switch p to 1-p",
-                "  - bubble plot, sizes are with respect to |a|"], '\n')
-    =#
-end
-
-"""
-    function A_matrix(ped)
----
-Give a matrix of 2 columns:
-- Sire
-- Dam
-
-With row number as ID number, this function return a **A** matrix.
-It is assumed that row number is the `ID` number.
-`Sire`s and `Dam`s are of integers less than their offspring `ID`.
-This function cannot deal very large pedigree, i.e.,
-with 32G momory, this function can only calculate a pedigree with
-~90k ID.
-With half precision, this can be ~130k.
-With double precision, this function can only handle ~65k ID.
-"""
-function A_matrix(ped)
-    n = size(ped, 1)
-    A = zeros(Float32, n, n)
-    for i in 1:n
-        ip, im = ped[i, :]      # ID i's pa and ma
-        A[i, i] = 1.            # below avoid swap
-        ip >0 && im >0 && (A[i, i] += .5(A[ip, im] + A[im, ip]))
-        for j in i+1:n          # upper triangular
-            jp, jm = ped[j, :]
-            jp > 0 && (A[i, j] += .5A[i, jp])
-            jm > 0 && (A[i, j] += .5A[i, jm])
-            A[j, i] = A[i, j]
-        end
-        i % 100 == 0 && (print("\t$i"))
-    end
-    A
-end
-
-"""
-    function kinship(ped, i, j)
----
-This function is handy if just to calculate relationship of a few (pairs of) ID.
-It can also speed up by adding `Thread.@threads` before your pair loop.
-"""
-function kinship(ped, i, j)
-    (i == 0 || j == 0) && return 0
-    pa, ma = ped[i, :]          # used both for below and the last
-    i == j && (return 1 + .5kinship(ped, pa, ma))
-    if i < j
-        pa, ma = ped[j, :]
-        return .5(kinship(ped, i, pa) + kinship(ped, i, ma))
-    end
-    return .5(kinship(ped, j, pa) + kinship(ped, j, ma))
 end

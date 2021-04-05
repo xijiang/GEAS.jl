@@ -1,7 +1,7 @@
 module GEAS
 
 using LinearAlgebra, Dates, HTTP, DataFrames, Random, Distributions,
-    Serialization, Statistics, StatsPlots, JLD2, SparseArrays
+    Serialization, Statistics, StatsPlots, JLD2
 import Octavian: matmul, matmul!
 export workflow
 
@@ -25,6 +25,7 @@ include("dropping.jl")
 include("structs.jl")
 include("phenotypes.jl")
 include("breeding.jl")
+include("inbreeding.jl")
 include("evaluation.jl")
 include("sim-base.jl")
 include("gedit.jl")
@@ -39,6 +40,7 @@ include("tst/evaluation.jl")
 include("tst/dropping.jl")
 include("tst/editing.jl")
 include("tst/make-a-selection-sample.jl")
+include("tst/breeding-summary.jl")
 
 copyright()
 
