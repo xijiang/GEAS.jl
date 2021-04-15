@@ -65,8 +65,15 @@ function sim_base(h, c, l, s; t = 1e-5, r = 1e-5, maf=0.05)
     @info "Simulate a base population with `macs`"
     cmd = `$macs $h $l -t $t -r $r`
     sim = joinpath(dat_dir, "run/sim")
-    hps = joinpath(sim, "haps.txt")
     isdir(sim) || mkpath(sim)
+    print("Simulate chromosome:")
+    Threads.@threads for ic in 1:c
+        print(" $ic")
+        run(pipeline(cmd,
+                     stderr = devnull,
+                     stdout = "$sim/$ic.txt"))
+    end
+    println()
     nlc = c * s
     # base is not big, BitArray can be slow.
     # the real base is also of Int8. so
@@ -77,14 +84,11 @@ function sim_base(h, c, l, s; t = 1e-5, r = 1e-5, maf=0.05)
     r   = Array{Float64, 1}(undef, nlc)
     from = 1
     totl = 0                    # in case not enough SNP simulated
-    print("Simulating chromosome: ")
+    print("Collect chromosome:")
     for ic in 1:c
         print(" $ic")
-        run(pipeline(cmd,
-                     stderr = joinpath(sim, "debug.log"),
-                     stdout = hps))
-        # chromsome genotype, physical positions, frequences
-        cg, cp, cf = read_macs(hps) # c: current chromosome
+        # chromsome genotype (cg), physical positions (cp), frequences (cf)
+        cg, cp, cf = read_macs("$sim/$ic.txt") # c: current chromosome
         ix = sample_macs(cf, maf, s)
         cs = length(ix)         # check if enough loci sampled
         cs < s && @warn "Less than expected SNP sampled on chromosome $ic"
@@ -96,10 +100,10 @@ function sim_base(h, c, l, s; t = 1e-5, r = 1e-5, maf=0.05)
     end
     println()
     begin                       # create the dictionary and return
-        pos = [chr bp]
+        pos = [chr[1:totl] bp[1:totl]]
         r   = haldane(pos)
         Dict(:pos => pos,
              :r => r,
-             :hap => Bool.(gt))
+             :hap => Bool.(gt[1:totl, :]))
     end
 end

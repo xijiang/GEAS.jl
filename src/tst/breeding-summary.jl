@@ -24,7 +24,7 @@ function bp_summary(prd, snp, qtl)
         ped[n₀+n₁+1:end, :] = pm₂
         ped
     end
-    
+
     @info "Inbreeding using A matrix"
     begin                 # generation average inbreeding coefficients
         # only need to record generation, and one ID number of its many full sibs.
@@ -64,6 +64,7 @@ function bp_summary(prd, snp, qtl)
         savefig("doc/fig/inbreeding-changes-with-homozygous-loci.pdf")
     end
 
+    # Something not right below.  Will visit this later.
     #@info "Inbreeding using G matrix"
     #begin
     #    p = mean(snp, dims = 2)
@@ -98,7 +99,11 @@ function bp_summary(prd, snp, qtl)
         p1 = mean(qg[:, 1:n1], dims=2)./2
         n2 = nrow(filter(row -> row.g8n == prd.g8n[end], prd))
         p2 = mean(qg[:, end-n2:end], dims=2)./2
-        scatter(p1, p2, ms=p1.*10, label="Frequency changes", dpi=300)
+        scatter(p1, p2 .- p1, ms=p1.*10,
+                label="Frequency changes",
+                xlabel="MAF",
+                ylabel="frequency change",
+                dpi=300)
         savefig("doc/fig/frequency-changes.pdf")
     end
 end
