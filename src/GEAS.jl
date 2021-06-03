@@ -16,32 +16,35 @@ bin_dir = joinpath(prj_dir, "bin")
 plink   = joinpath(bin_dir, "plink")
 beagle  = joinpath(bin_dir, "beagle.jar")
 macs    = joinpath(bin_dir, "macs")
+qmsim   = joinpath(bin_dir, "qmsim")
 
-include("workflow.jl")
-include("genotypes.jl")
-include("b_Update.jl")
-include("simQTL.jl")
-include("dropping.jl")
-include("structs.jl")
-include("phenotypes.jl")
 include("breeding.jl")
-include("inbreeding.jl")
+include("b-Update.jl")
+include("dropping.jl")
 include("evaluation.jl")
-include("sim-base.jl")
 include("gedit.jl")
+include("genotypes.jl")
+include("inbreeding.jl")
+include("phenotypes.jl")
+include("sim-base.jl")
+include("sim-QTL.jl")
+include("structs.jl")
+include("summarize.jl")
+include("workflow.jl")
+
 
 # Test files
 # all functions in files below are in `src/tst`.
-# These can be excluded in the release version.
-# but can serve as examples.
-
-include("tst/breeding.jl")
-include("tst/evaluation.jl")
-include("tst/dropping.jl")
-include("tst/editing.jl")
-include("tst/make-a-selection-sample.jl")
-include("tst/breeding-summary.jl")
-include("tst/distribution.jl")
+# # These can be excluded in the release version.
+# # but can serve as examples.
+# 
+# include("tst/breeding.jl")
+# include("tst/evaluation.jl")
+# include("tst/dropping.jl")
+# include("tst/editing.jl")
+# include("tst/make-a-selection-sample.jl")
+# include("tst/breeding-summary.jl")
+# include("tst/distribution.jl")
 
 copyright()
 

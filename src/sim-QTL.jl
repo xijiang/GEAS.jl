@@ -13,6 +13,7 @@ this function tries to:
 
 Note:
 - A problem with `Γ(0.4, 1)` is that two traits will have an expectation correlation ~0.2.
+- Randomly flip the sign of the effects may be a solution.
 """
 function sim_QTL(base, nqtl...; d = Laplace())
     @info join(["",
@@ -30,10 +31,11 @@ function sim_QTL(base, nqtl...; d = Laplace())
         Q  = qtl_gt(GT, loci)
         #a = (shape < 0) ? randn(n) : rand(Gamma(0.4, 1), n)
         a = rand(d, n)
-        vₐ = var(Q'a)           # variance of TBV
-        a ./= sqrt(vₐ)          # scale allele effect, such that vₐ = 1
-        m = mean(Q'a)           # base population expectation
-        t = 2sum(a[a.>0]) - m   # expectation of an ideal ID
+        y = Q'a
+        v = var(y)             # variance of TBV
+        a ./= sqrt(v)          # scale allele effect, such that vₐ = 1
+        m = mean(y)            # base population expectation
+        t = 2sum(a[a.>0]) - m  # expectation of an ideal ID
         push!(qinfo, QTL(loci, a, m, t))
     end
     qinfo
@@ -53,4 +55,38 @@ function qtl_gt(snp, qtl)
         Q[:, id] = snp[qtl, id*2 - 1] + snp[qtl, id*2]
     end
     Q
+end
+
+"""
+    function sim_pt_QTL(base, nqtl, d)
+---
+Simulation of pleiotropic QTL, where `pt` is a shorthand of pleiotropic.
+That is, sample QTL for two traits that are all of the same positions.
+The effects of this set of QTL for the two traits,
+however, are correlated.
+For example, they can be reasonably negative correlated.
+"""
+function sim_pt_QTL(base, nqtl, d)
+    @info join(["",
+                "Sample pleiotropic QTL for two trait",
+                "The pleiotropic effects of the QTL are define by MV distribution `d`"],
+               "\n")
+    pos = base[:pos]
+    GT  = base[:hap]            # short hands
+    tsnp = size(pos)[1]
+    qinfo = QTL[]
+    # two traits share below QTL
+    lqtl = sort(randperm(tsnp)[1:nqtl])
+    eqtl = rand(d, nqtl)'       # effects for each trait in column
+    Q = qtl_gt(GT, lqtl)        # QTL genotypes
+    for i in 1:2
+        a = eqtl[:, i]
+        y = Q'a
+        m = mean(y)             # base population mean
+        v = var(y)
+        a ./= sqrt(v)
+        t = 2sum(a[a.>0]) -m    # ideal ID expectation - base
+        push!(qinfo, QTL(lqtl, a, m, t))
+    end
+    qinfo
 end

@@ -109,6 +109,30 @@ end
 
 
 """
+    function get_QMSim()
+---
+Pull the latest QMSim to package bin directory
+"""
+function get_qmsim(;force=false)
+    url = "http://www.aps.uoguelph.ca/~msargol/qmsim/QMSim_Linux.zip"
+    if !isfile("$bin_dir/qmsim") || force
+        @info "Fetch `QMSim`"
+        tst = joinpath(dat_dir, "test")
+        isdir(tst) || mkpath(tst)
+        cd(tst)
+        download(url, "qmsim.zip")
+        run(`unzip -f qmsim.zip`)
+        cp("QMSim_Linux/QMSim", joinpath(bin_dir, "qmsim"), force = true)
+        cd(prj_dir)
+    else
+        @info join(["",
+                    "QMSim was already downloaded",
+                    "Call GEAS.get_qmsim(force=true) to force download"],
+                   "\n")
+    end
+end
+
+"""
     Update()
 ---
 Every time one starts this package, the package will automatically check if `plink` and `beagle.jar` exist.
@@ -121,4 +145,5 @@ function Update()
     update_beagle()
     update_plink()
     update_macs()
+    get_qmsim()
 end

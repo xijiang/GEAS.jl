@@ -107,3 +107,118 @@ function sim_base(h, c, l, s; t = 1e-5, r = 1e-5, maf=0.05)
              :hap => Bool.(gt[1:totl, :]))
     end
 end
+
+
+"""
+    function qmsim()
+--
+Simulate a base with `QMSim`.  Note, this program has many functions.
+We only simulate SNP of a base population here.
+Only the Linux version is used here.
+Cross-platform running will be considered later.
+"""
+function qmsim_base(par; dir = ".")
+    @info "Simulate a base with QMSim"
+    isdir(dir) || mkpath(dir)
+    tmp = mktempdir(dir)
+    prm = [
+        # Global parameters
+        "title = \"A base with QMSim\";",
+        "nrep = 1;",
+        "h2 = 0;",
+        "qtlh2 = 0;",
+        "phvar = 1.0;",
+        # Historical population
+        # - I use a string here, two rows, the 2nd row specify 2Ne generations
+        "begin_hp;",
+        "    hg_size = $(par.hg_size);",
+        "end_hp;",
+        # Population
+        "begin_pop = \"base\";",
+        "    begin_founder;",
+        "        male   [n = $(par.male), pop = \"hp\"];",
+        "        female [n = $(par.female), pop = \"hp\"];",
+        "    end_founder;",
+        "    ls = 1;",          # litter size, to be discussed
+        "    ng  = 1;",
+        "    begin_popoutput;",
+        "        genotype /gen 1;",
+        "    end_popoutput;",
+        "end_pop;",
+        # Genome
+        "begin_genome;",
+        "    begin_chr = $(par.nchr);",
+        "        chrlen = $(par.lchr);",
+        "        nmloci = $(par.nsnp);",
+        "        mpos   = rnd;",
+        "        nma    = all 2;",
+        "        maf    = eql;",
+        "        nqloci = 0;",
+        "        qpos   = rnd;",
+        "        nqa    = all 2;",
+        "        qaf    = eql;",
+        "        qae    = rndg 0.4;",
+        "    end_chr;",
+        "end_genome;",
+        # Output options
+        "begin_output;",
+        "    linkage_map;",
+        "    output_folder = \"$tmp\";",
+        "end_output;"
+    ]
+    open("$dir/qmsim.prm", "w") do io
+        println(io, join(prm, "\n"))
+    end
+    run(pipeline(`$qmsim $dir/qmsim.prm -o`, devnull))
+    read_qmsim_gt(tmp)
+end
+
+"""
+    function read_qmsim_gt(dir)
+---
+Read `QMSim` genotype results into a `base`.
+"""
+function read_qmsim_gt(dir)
+    chr = Int[]
+    mgn = Float64[]             # Morgan positions
+    open("$dir/lm_mrk_001.txt", "r") do io
+        _ = readline(io)        # skip head line
+        for line in eachline(io)
+            c, m = split(line)[2:3]
+            push!(chr, parse(Int, c))
+            push!(mgn, parse(Float64, m))
+        end
+    end
+    bp = Int.(floor.(mgn .* 1e6)) # suppose 1cM = 1e6 bp
+    pos = [chr bp]
+    r = haldane(pos)
+
+    gt = begin
+        t = Int[]
+        open("$dir/base_mrk_001.txt", "r") do io
+            _ = readline(io)
+            for line in eachline(io)
+                g = split(line)[2:end]
+                append!(t, parse.(Int, g))
+            end
+        end
+        t .-= 1                 # collected vector
+        nlc = length(chr)
+        nhp = length(t) ÷ nlc
+        u = reshape(t, 2nlc, :)
+        v = BitArray(undef, nlc, nhp)
+        for i in 1:nlc
+            h = 2i
+            for j in 2:2:nhp
+                id = j ÷ 2
+                v[i, j-1:j] = u[h-1:h, id]
+            end
+        end
+        v
+    end
+    
+    Dict(:pos => pos,
+         :r => r,
+         :hap => gt
+         )
+end
