@@ -142,6 +142,10 @@ Disk I/O is avoided as much as possible.
 A full pedigree should include size(base) rows of `0 0`.
 """
 function breeding_program(base, par, qtl; edit=false)
+    # determine which QTL are known in the beginning.
+    loci_2_edit = top_QTL(base[:hap], qtl[2], n=par.nk3n)
+    ed_qtl = QTL(qtl[2].pos[loci_2_edit], qtl[2].effect[loci_2_edit], 0, 0)
+    
     # general parameters
     @info "Create storage and generation one"
     snp₁, snp₂, prd, clg, f1, f2, f3, f4 = # f: from
@@ -152,7 +156,7 @@ function breeding_program(base, par, qtl; edit=false)
     ip, ic, hp, hc = test_sets(nDam, nSib, nChallenge)
     l1, l2, l3, l4 = length.((ip, ic, hp, hc)) # lengths of generation 2+
     h2 = begin                                 # for the binary trait
-        p = par.p8e             # percentage killed/survied
+        p = par.p8e             # percentage to be killed in challenge
         z = pdf(Normal(), p)
         par.h²[2]*z*z/(p*(1-p)) # ~0.25 here
     end
@@ -187,7 +191,7 @@ function breeding_program(base, par, qtl; edit=false)
         # simulate current generation
         ped = random_mate(nuclear, nSire, nDam, nSib)
         nxt = gdrop(snp₁, ped, base[:r])
-        edit && gedit(nxt, qtl[2], par.e19e)
+        edit && gedit(nxt, ed_qtl, par.e19e)
         bv₁, p₁ = phenotype(nxt, qtl[1], par.h²[1])
         bv₂, p₂ = phenotype(nxt, qtl[2], par.h²[2], par.p8e)
         

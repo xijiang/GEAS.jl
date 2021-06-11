@@ -85,7 +85,7 @@ function sim_pt_QTL(base, nqtl, d)
         m = mean(y)             # base population mean
         v = var(y)
         a ./= sqrt(v)
-        t = 2sum(a[a.>0]) -m    # ideal ID expectation - base
+        t = 2sum(a[a.>0]) - m   # ideal ID expectation - base
         push!(qinfo, QTL(lqtl, a, m, t))
     end
     qinfo
