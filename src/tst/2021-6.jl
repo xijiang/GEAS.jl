@@ -23,6 +23,7 @@ This is because that the genotypes from `QMSimu` and `ms` still look wierd to me
 function run_2021_06()
     @load "dat/run/base.jld2" base
     rst = "dat/editing"
+    isdir(rst) && rm(rst, force=true, recursive=true)
     isdir(rst) || mkpath(rst)
     
     for nqtl in 100:450:1000
@@ -42,7 +43,7 @@ function run_2021_06()
                         :nQTL => [nqtl, nqtl],
                         :h²   => [.5, .5],
                         :p8e  => .5, # percentage of affected in the binary trait
-                        :e19e => .8, # edit_successsful_rate
+                        :e19e => 1., # edit_successsful_rate
                         :w4t  => 1, # weight on the binary trait EBV
                         :nk3n => 3  # number of known QTL
                     )
