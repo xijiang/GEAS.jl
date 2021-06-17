@@ -60,7 +60,6 @@ function run_2021_06()
     end
 end
 
-
 function my_test()
     @load "dat/run/base.jld2" base
     r = .5

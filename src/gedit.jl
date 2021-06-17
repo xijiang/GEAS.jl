@@ -7,6 +7,8 @@ according to `2pqa^2`.
 The editing will have a successful rate, `sr` ∈ (0, 1).
 
 For simplicity, the whole generation genotypes can be sent here for editing.
+
+I always deem it the more positive the better.
 """
 function gedit(snp, qtl, sr)
     nid = size(snp)[2] ÷ 2

@@ -141,10 +141,11 @@ Disk I/O is avoided as much as possible.
 ## Memo
 A full pedigree should include size(base) rows of `0 0`.
 """
-function breeding_program(base, par, qtl; edit=false)
+function breeding_program(base, par, qtl; edit=false, fixed=false)
     # determine which QTL are known in the beginning.
     loci_2_edit = top_QTL(base[:hap], qtl[2], n=par.nk3n)
     ed_qtl = QTL(qtl[2].pos[loci_2_edit], qtl[2].effect[loci_2_edit], 0, 0)
+    Q = fixed ? loci_2_edit : Int[] # whether to deem the known QTL as fixed effects
     
     # general parameters
     @info "Create storage and generation one"
@@ -167,6 +168,8 @@ function breeding_program(base, par, qtl; edit=false)
         # OBS!!!
         # select ID for nuclear from ig-1 on data of all previous generations
         val = begin             # scores for selective candidates
+            # edit or emphasize on known QTL
+            edit && gedit(snp₁, ed_qtl, par.e19e)
             # the production trait
             g1 = alleles2gt(view(snp₁, :, 1:f3))
             p1 = select(prd[prd.g8n .< ig, :], :p7e).p7e
@@ -177,7 +180,7 @@ function breeding_program(base, par, qtl; edit=false)
             m2, s2 = begin
                 # generation as fixed effects
                 f = select(clg[clg.g8n .< ig, :], :g8n).g8n
-                snp_blup(g2, p2, h2, F=f)
+                snp_blup(g2, p2, h2, Q=Q, F=f)
             end
             g1's1 + g1's2 .* par.w4t
         end
@@ -191,7 +194,6 @@ function breeding_program(base, par, qtl; edit=false)
         # simulate current generation
         ped = random_mate(nuclear, nSire, nDam, nSib)
         nxt = gdrop(snp₁, ped, base[:r])
-        edit && gedit(nxt, ed_qtl, par.e19e)
         bv₁, p₁ = phenotype(nxt, qtl[1], par.h²[1])
         bv₂, p₂ = phenotype(nxt, qtl[2], par.h²[2], par.p8e)
         

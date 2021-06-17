@@ -153,6 +153,7 @@ function snp_blup(g, p, h²; Q = [], F = [])
     end
 
     # Solving
+    # ToDo: may try `preconditioned conjugate gradient` later
     LAPACK.posv!('L', lhs, rhs)
 
     # return fixed effects and SNP effects separately
