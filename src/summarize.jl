@@ -108,3 +108,11 @@ function bp_summary(prd, snp, qtl; dir=".")
         savefig("$dir/frequency-changes.pdf")
     end
 end
+
+function sum_improve(prd)
+    gp = groupby(prd, :g8n)
+    @info "Genetic variance and inbreeding over generations"
+    p = combine(gp, :tbv => mean => :mprd)
+    b = combine(gp, :t2c => mean => :mbin)
+    p, b
+end

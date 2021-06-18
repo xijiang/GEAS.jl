@@ -4,7 +4,7 @@ using JLD2, Distributions, Serialization
 import GEAS:sim_pt_QTL, breeding_program, top_QTL
 
 """
-    function run_2021_06_01(jld; rst = "")
+    function run_2021_06_01(jld, nqtl, rt, nsib, nrpt; rst = "")
 ---
 ## Description
 - 20 repeats
