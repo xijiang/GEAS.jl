@@ -142,8 +142,10 @@ Disk I/O is avoided as much as possible.
 A full pedigree should include size(base) rows of `0 0`.
 """
 function breeding_program(base, par, qtl; edit=false, fixed=false)
+    flog = open(par.log, "w")
     # determine which QTL are known in the beginning.
     loci_2_edit = top_QTL(base[:hap], qtl[2], n=par.nk3n)
+    println(flog, join(loci_2_edit, ' '))
     ed_qtl = QTL(qtl[2].pos[loci_2_edit], qtl[2].effect[loci_2_edit], 0, 0)
     Q = fixed ? loci_2_edit : Int[] # whether to deem the known QTL as fixed effects
     
@@ -173,14 +175,14 @@ function breeding_program(base, par, qtl; edit=false, fixed=false)
             # the production trait
             g1 = alleles2gt(view(snp₁, :, 1:f3))
             p1 = select(prd[prd.g8n .< ig, :], :p7e).p7e
-            m1, s1 = snp_blup(g1, p1, par.h²[1])
+            m1, s1 = snp_blup(g1, p1, par.h²[1], dd = par.dd)
             # the challenge trait
             g2 = alleles2gt(view(snp₂, :, 1:f4))
             p2 = select(clg[clg.g8n .< ig, :], :p7e).p7e
             m2, s2 = begin
                 # generation as fixed effects
                 f = select(clg[clg.g8n .< ig, :], :g8n).g8n
-                snp_blup(g2, p2, h2, Q=Q, F=f)
+                snp_blup(g2, p2, h2, Q=Q, F=f, dd = par.dd)
             end
             g1's1 + g1's2 .* par.w4t
         end
@@ -212,6 +214,6 @@ function breeding_program(base, par, qtl; edit=false, fixed=false)
         f3 += l3
         f4 += l4
     end
-
+    close(flog)
     return prd, snp₁            # bitset snp is only of a few GiB.
 end

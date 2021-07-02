@@ -40,11 +40,11 @@ It can also speed up by adding `Thread.@threads` before your pair loop.
 """
 function kinship(ped, i, j)
     (i == 0 || j == 0) && return 0
-    pa, ma = ped[i, :]          # used both for below and the last
-    i == j && (return 1 + .5kinship(ped, pa, ma))
+    ipa, ima = ped[i, :]          # used both for below and the last
+    i == j && (return 1 + .5kinship(ped, ipa, ima))
     if i < j
-        pa, ma = ped[j, :]
-        return .5(kinship(ped, i, pa) + kinship(ped, i, ma))
+        jpa, jma = ped[j, :]
+        return .5(kinship(ped, i, jpa) + kinship(ped, i, jma))
     end
-    return .5(kinship(ped, j, pa) + kinship(ped, j, ma))
+    return .5(kinship(ped, j, ipa) + kinship(ped, j, ima))
 end

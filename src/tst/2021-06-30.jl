@@ -2,7 +2,7 @@ using JLD2, Distributions, Serialization
 import GEAS:sim_pt_QTL, breeding_program, top_QTL
 
 """
-    function run_2021_06_01(jld, nqtl, rt, nsib, nrpt; rst = "")
+    function the_simulation(jld, nqtl, rt, nrpt; rst = "")
 ---
 ## Description
 - 3 comparisons
@@ -15,9 +15,9 @@ import GEAS:sim_pt_QTL, breeding_program, top_QTL
 2. nqtl: e.g., 500
 3. rt: correlation of QTL effects between 2 traits
 4. nrpt: number of repeats
-5. rst: result path
+5. rst: result path, in `2021-06-30/`
 """
-function attemp_02(jld, nqtl, rt, nrpt; rst = "")
+function the_simulation(jld, nqtl, rt, nrpt; rst = "")
     @load jld base
     if length(rst) > 1
         isdir(rst) || mkpath(rst)
@@ -42,7 +42,9 @@ function attemp_02(jld, nqtl, rt, nrpt; rst = "")
                 :p8e  => .5,    # death rate after challenge
                 :e19e => 1.,    # edit_successsful_rate
                 :w4t  => 1,     # weight on the binary trait EBV
-                :nk3n => 5      # number of known QTL on binary trait
+                :nk3n => 5,     # number of known QTL on binary trait
+                :dd   => 0.01, # A small value to be added to diagonals
+                :log  => joinpath(rst, "qtl.log")
             )
             (; Parameters...)       # named tuple.  contents as above
         end
@@ -62,4 +64,16 @@ function attemp_02(jld, nqtl, rt, nrpt; rst = "")
         serialize(joinpath(rst, "prd-c-$suffix.ser"), prd)
         serialize(joinpath(rst, "snp-c-$suffix.ser"), snp)
     end
+end
+
+function simulation_2021_06_30()
+    the_simulation("dat/run/base.jld2", 500, 0, 10, rst="dat/2021-06-30")
+end
+
+function simulation_2021_07_01()
+    the_simulation("dat/run/base.jld2", 500, -.2, 10, rst="dat/2021-07-01")
+end
+
+function simulation_2021_07_02()
+    the_simulation("dat/run/base.jld2", 500, .2, 10, rst="dat/2021-07-02")
 end

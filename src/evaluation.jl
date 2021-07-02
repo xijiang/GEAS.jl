@@ -1,5 +1,5 @@
 """
-    function grm(gt)
+    function grm(gt; nz=0.)
 ---
 Genotypes are of value 0, 1 or 2, and of ID column majored.
 They should be stored per ID per column.
@@ -7,12 +7,13 @@ This function uses vanRaden method I.
 I do no genotype and frequency check here,
 As it should be done somewhere else.
 """
-function grm(g)
+function grm(g; nz=0.)
     twop = mean(g, dims = 2)
     s2pq = (1 .- .5 .* twop)'twop # one element array
     r2pq = 1. / s2pq[1]
     Z = g .- twop
-    Z'Z .* r2pq
+    G = Z'Z .* r2pq
+    !iszero(nz) && (G += nz .* I)
 end
 
 """
@@ -91,7 +92,7 @@ This will be changed if to run on a bigger machine.
 changed to
 `function snp_blup(g, p, h²; Q = [], F = [])`, on 2021-Apr.-1
 """
-function snp_blup(g, p, h²; Q = [], F = [])
+function snp_blup(g, p, h²; Q = [], F = [], dd=0)
     nlc, nid = size(g)
     @info join(["",
                 "SNP-BLUP",
@@ -99,7 +100,7 @@ function snp_blup(g, p, h²; Q = [], F = [])
                 "  $nid ID"], "\n")
 
     # λ = (σₑ²/σₐ²) * nlc  # changed to below
-    λ = (1. - h²)/h² * nlc
+    λ = (1. - h²)/h² * nlc + dd
     X = begin           # incident matrix for fixed effects, include μ
         if length(F) > 0
             fxmat(F)
