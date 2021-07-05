@@ -39,8 +39,8 @@ function the_simulation(jld, nqtl, nrpt, desc, op; rst = "")
     w = ndigits(nrpt)
     for r in 1:nrpt
         #qtl = sim_QTL(base, nqtl, nqtl)
-        qtl = sim_gamma_QTL(base, nqtl, op)
-        
+        qtl = current_qtl(base, nqtl, op)
+
         suffix = lpad(string(r), w, '0')
         serialize(joinpath(rst, "qtl-$suffix.ser"), qtl)
         par = begin
@@ -61,7 +61,7 @@ function the_simulation(jld, nqtl, nrpt, desc, op; rst = "")
             )
             (; Parameters...)       # named tuple.  contents as above
         end
-        
+
         # genomic selection with no known QTL
         prd, snp = breeding_program(base, par, qtl)
         serialize(joinpath(rst, "prd-a-$suffix.ser"), prd)

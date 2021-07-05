@@ -144,8 +144,9 @@ A full pedigree should include size(base) rows of `0 0`.
 function breeding_program(base, par, qtl; edit=false, fixed=false)
     # determine which QTL are known in the beginning.
     topqtl = top_QTL(base[:hap], qtl[2], par.nk3n)
+
     open(par.log, "a") do io    # top QTL decided in this repeat
-        println(io, join(l, ' '))
+        println(io, join(topqtl, ' '))
     end
     Q = fixed ? topqtl : Int[] # whether to deem the known QTL as fixed effects
     

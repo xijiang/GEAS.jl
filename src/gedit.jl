@@ -16,11 +16,10 @@ function gedit(snp, pos, sr)
 end
 
 """
-    function top_QTL(base, qtl; n = 1, onVar=false)
+    function top_QTL(snp, qtl, n, onVar=false)
 ---
-Return the subset of top QTL `qtl` according to their variance, `2pqa^2`, in `base`.
-Only one is returned by default.
-`n` can be changed to other value, as number of known QTL in the base population.
+Return the row number of top `n` QTL `qtl` in `snp`, on variance (`2pqa^2`)
+or on `effect`.
 
 ## Amendment
 - I realized that it's better to decide the QTL and their order to edit in the beginning.
