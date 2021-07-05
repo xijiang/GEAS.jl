@@ -42,6 +42,35 @@ function sim_QTL(base, nqtl...; d = Laplace())
 end
 
 """
+Simulation of QTL with Gamma distribution Γ(0.4).
+"""
+function sim_gamma_QTL(base, nqtl...)
+    @info join(["",
+                "Sample QTL locations and effects",
+                "QTL effects were simulated such that, var(BV) ≈ 1"],
+                "\n")
+    pos = base[:pos]
+    GT  = base[:hap]            # short hands
+    tsnp = size(pos)[1]
+    ntrt = length(nqtl)
+
+    qinfo = QTL[]
+    for n in nqtl
+        loci = sort(randperm(tsnp)[1:n])
+        Q  = qtl_gt(GT, loci)
+        #a = (shape < 0) ? randn(n) : rand(Gamma(0.4, 1), n)
+        a = rand(Gamma(0.4), n) .* rand([1, -1], n)
+        y = Q'a
+        v = var(y)             # variance of TBV
+        a ./= sqrt(v)          # scale allele effect, such that vₐ = 1
+        m = mean(y)            # base population expectation
+        t = 2sum(a[a.>0]) - m  # expectation of an ideal ID
+        push!(qinfo, QTL(loci, a, m, t))
+    end
+    qinfo
+end    
+
+"""
     function qtl_gt(snp, qtl)
 ---
 Given population genotypes `snp`, this function returns the QTL genotypes `Q`,

@@ -142,12 +142,12 @@ Disk I/O is avoided as much as possible.
 A full pedigree should include size(base) rows of `0 0`.
 """
 function breeding_program(base, par, qtl; edit=false, fixed=false)
-    flog = open(par.log, "w")
     # determine which QTL are known in the beginning.
-    loci_2_edit = top_QTL(base[:hap], qtl[2], n=par.nk3n)
-    println(flog, join(loci_2_edit, ' '))
-    ed_qtl = QTL(qtl[2].pos[loci_2_edit], qtl[2].effect[loci_2_edit], 0, 0)
-    Q = fixed ? loci_2_edit : Int[] # whether to deem the known QTL as fixed effects
+    topqtl = top_QTL(base[:hap], qtl[2], par.nk3n)
+    open(par.log, "a") do io    # top QTL decided in this repeat
+        println(io, join(l, ' '))
+    end
+    Q = fixed ? topqtl : Int[] # whether to deem the known QTL as fixed effects
     
     # general parameters
     @info "Create storage and generation one"
@@ -171,7 +171,10 @@ function breeding_program(base, par, qtl; edit=false, fixed=false)
         # select ID for nuclear from ig-1 on data of all previous generations
         val = begin             # scores for selective candidates
             # edit or emphasize on known QTL
-            edit && gedit(snp₁, ed_qtl, par.e19e)
+            if edit && length(topqtl) > 0
+                l = popfirst!(topqtl)
+                gedit(snp₁, l, par.e19e)
+            end
             # the production trait
             g1 = alleles2gt(view(snp₁, :, 1:f3))
             p1 = select(prd[prd.g8n .< ig, :], :p7e).p7e
@@ -214,6 +217,5 @@ function breeding_program(base, par, qtl; edit=false, fixed=false)
         f3 += l3
         f4 += l4
     end
-    close(flog)
     return prd, snp₁            # bitset snp is only of a few GiB.
 end
