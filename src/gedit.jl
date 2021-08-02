@@ -5,9 +5,9 @@ With the SNP genotypes `snp` on position `pos`.
 If `pos`>0, make them alleles at `pos` 1, or 0, with a successful rate, `sr`.
 """
 function gedit(snp, pos, sr)
-    nid = size(snp)[2] ÷ 2
+    nallele = size(snp)[2]
     l = abs(pos)
-    br = rand(Bernoulli(sr), 2nid) # succeeded editing
+    br = rand(Bernoulli(sr), nallele) # succeeded editing
     if pos > 0
         snp[l, br] .= 1
     else

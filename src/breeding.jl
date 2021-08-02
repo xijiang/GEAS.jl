@@ -51,8 +51,75 @@ end
 """
     function create_storage(base, par)
 ---
+This is a refactorized function for creating storage.
+My function before was too long, making it difficult for debugging.
+This will just create empty DataFrames for pedigree and traits,
+and BitArray for genotypes.
+
+The storage is created in one-go.
+This is to avoid too many times of memory allocations,
+which can crash the program.
+
+Finally knew how to use `view`.
+Use `view`s for gene-dropping.
+"""
+function create_storage(base, par)
+    # Generation 0: (for simplicity, I copy the SNP into `snp_prd`)
+    n₀ = size(base[:hap])[2] ÷ 2 # base population size
+    nSnp = size(base[:hap])[1]
+    n₀Sir = begin                # valid even for more sires than dams
+        r = par.nDam / par.nSire     # female:male ratio
+        max(Int(floor(n₀/(1+r))), 1) # to make sure to have one male
+    end
+    n₀Dam = n₀ - n₀Sir
+    return n₀
+    # Generation 1: generate similar number of offspring as g-2:end
+    n₂Fam = max(par.nDam, par.nSire) # for generation 2:end
+    n₁Fam = max(n₀Sir, n₀Dam)
+    n₁prd = Int(floor(n₁Fam * (n₂Fam / n₁Fam * (par.nSib - par.nC7e))))
+    n₁clg = Int(floor(n₁Fam * (n₂Fam / n₁Fam * par.nC7e)))
+
+    # Generation 2:end
+    nGrn = par.nG8n - 1         # base is counted as one generation
+    n₂prd = nFam * (par.nSib -par.nC7e) # and rest generations
+    n₂clg = nFam * par.nC7e
+    nPrd = n₁prd + nGrn * n₂prd + n₀
+    nClg = n₁clg + nGrn * n₂clg
+
+    # For SNP
+    snp_prd = BitArray(undef, nSnp, nPrd*2)
+    snp_clg = BitArray(undef, nSnp, nClg*2)
+
+    # For pedigree
+    prd = begin
+        g8n = Int16.([zeros(n₀);   # base population
+                      ones(n₁prd); # Int8 (128 g8n) is enough, but Int16
+                      repeat(2:par.nG8n, inner=n₂prd)])
+        id = 1:nPrd
+        sex = rand(Int8.(0:1), nPrd) # determine sex in very good advance
+        Sir = Array{Int32, 1}(undef, nPrd)
+        Dam = Array{Int32, 1}(undef, nPrd)
+        TBV = Array{Float32, 1}(undef, nPrd) # for production trait
+        T2C = Array{Float32, 1}(undef, nPrd) # TBV for disease trait
+        p7e = Array{Float32, 1}(undef, nPrd)
+        
+        DataFrame(g8n = g8n,
+                  id  = id,
+                  sex = sex,
+                  sir = Sir,
+                  dam = Dam,
+                  tbv = TBV,    # TBV for the production trait
+                  t2c = T2C,    # TBV for the binary trait
+                  p7e = p7e)    # phenotype for the production trait
+    end
+end
+
+"""
+    function create_storage(base, par, qtl)
+---
+It was determined to store all the genotypes of history.
 Determine array sizes for one-go genotype storage.
-This is to avoid too much memory allocation, 
+This is to avoid too many times of memory allocations, 
 and garbage collection.
 GC may also cause program crash.
 """
@@ -130,7 +197,7 @@ function create_storage(base, par, qtl)
 end
 
 """
-    function breeding_program(base, par, nsib; edit=false)
+    function breeding_program(base, par, nsib; edit=false, fixed=false)
 ---
 Do the breeding with the given parameter `par`.
 I always breed the first generation separately.
@@ -148,7 +215,7 @@ function breeding_program(base, par, qtl; edit=false, fixed=false)
     open(par.log, "a") do io    # top QTL decided in this repeat
         println(io, join(topqtl, ' '))
     end
-    Q = fixed ? topqtl : Int[] # whether to deem the known QTL as fixed effects
+    Q = fixed ? abs.(topqtl) : Int[] # whether to deem the known QTL as fixed effects
     
     # general parameters
     @info "Create storage and generation one"
