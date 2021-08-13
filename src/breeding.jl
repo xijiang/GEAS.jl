@@ -229,7 +229,7 @@ function breeding(base, par, qtl; edit = false, fixed = false)
     snp, ped = create_storage(base, par)
     prd, clg = groupby(ped.prd, :g8n), groupby(ped.clg, :g8n)
     for ig in 1:par.nG8n-1
-        @info "Breeding of generation $ig of $(par.nG8n)"
+        @info "Breeding generation $ig of $(par.nG8n)"
         # dropping and create geno-, pheno- types.
         gene_drop(prd[(g8n=ig,)], base.r, snp.prd, snp.prd, qtl[1], par.h²[1])
         gene_drop(clg[(g8n=ig,)], base.r, snp.prd, snp.clg, qtl[2], par.h²[2])

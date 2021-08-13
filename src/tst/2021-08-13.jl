@@ -1,7 +1,7 @@
 using JLD2, DataFrames
 #, Distributions, Serialization, Dates, Statistics, DataFrames
 import GEAS:breeding, sim_QTL, summarize
-function t_2021_08_06()
+function t_2021_08_13()
     @load "dat/run/base.jld2" base
     nqtl = 100
     par = begin

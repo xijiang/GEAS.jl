@@ -5,7 +5,7 @@ Change alleles in SNP vector `svc` to `tov` (0/1),
 with a successful rate, `sr`.
 """
 function gedit(snp, prd, l, sr)
-    @debug "editing" $l
+    @debug "editing" l
     tov = l > 0 ? 1 : 0
     fra, til = 2first(prd.id)-1, 2last(prd.id)
     svc = view(snp, abs(l), fra:til)
