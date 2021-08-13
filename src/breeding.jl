@@ -1,31 +1,160 @@
 """
-    function test_sets(nfam, nsib, nclg)
+    function rand_mate(Sires, Dams, nSib)
 ---
-Given number of full sib families `nfam`, full sibship size `nsib`,
-and number of ID to be challenged `nclg`,
-this function return two vectors.
-They indicate ID index for challenge and for production.
-There are no need to random sample again as they were randomly dropped
-from the previous generation.
+Ramdomly mate `Sires` and `Dams`, which are name vectors.
+Each family will have `nSib` full sibs.
+If the bigger to smaller ratio of length of `Sires` and `Dams` is
+not integer, some ID may be used more often than others.
 """
-function test_sets(nfam, nsib, nclg)
-    # Index for ID in, e.g., phenotypes
-    ic = begin
-        a = repeat(0:nsib:(nfam-1)*nsib, inner=nclg)
-        a .+= repeat(1:nclg, nfam)
-    end
-    ip = begin
-        n = nsib - nclg
-        a = repeat(0:nsib:(nfam-1)*nsib, inner=n)
-        a .+= repeat(nclg+1:nsib, nfam)
-    end
+function rand_mate(Sires, Dams, nSib)
+    np, nm = length(Sires), length(Dams) # number of pa and ma
+    nf = max(np, nm)                     # number of full sib families
+    nid = nSib * nf
+    pa = repeat(shuffle(Sires), inner=nSib, outer=Int(ceil(nf/np)))
+    ma = repeat(shuffle(Dams), inner=nSib, outer=Int(ceil(nf/nm)))
+    pa[1:nid], ma[1:nid]
+end
+
+"""
+    function create_storage(base, par)
+---
+This is a refactorized function for creating storage.
+My function before was too long, making it difficult for debugging.
+This function is still very long, but well blockwised.
+
+The storage is created in one-go.
+This is to avoid too many times of memory allocations,
+which can crash the program.
+
+Finally knew how to use `view`.
+Use `view`s for gene-dropping later.
+
+This function:
+1. create storage for SNP of production and challenge group
+   - base SNP are copied to the production group as generation 0.
+2. create pedigree generation 0 → 1 for the production group
+   - which include the `base` population.
+3. create pedigree for the challenge group.
+4. generations are marked
+5. sex sampling determined in good advance
+6. determine parents of the 1st generation.
+"""
+function create_storage(base, par)
+    # the pedigree are of 3 parts: the base, 1st generation, 2:end generations
+    nSnp = size(base.hap)[1]
+
+    # Generation 0/base: (for simplicity, I copy base SNP into `snp_prd` later)
+    n₀    = size(base.hap)[2] ÷ 2   # base population size
+    fmr   = par.nDam / par.nSire      # female:male ratio
+    n₀Sir = Int(ceil(n₀ / (1 + fmr))) # valid even when nSires > nDams
+    n₀Dam = n₀ - n₀Sir
+    g₀Sex = shuffle([ones(Int8, n₀Sir); zeros(Int8, n₀Dam)])
+    g₀Sir = (1:n₀)[g₀Sex .== 1]
+    g₀Dam = (1:n₀)[g₀Sex .== 0]
     
-    # Index for haplotypes
-    hp = 2repeat(ip, inner=2)
-    hp[1:2:end] .-= 1
-    hc = 2repeat(ic, inner=2)
-    hc[1:2:end] .-= 1
-    ip, ic, hp, hc
+    # Generation 2:end
+    n₂Fam = max(par.nDam, par.nSire) # in generation 2:end
+    # - nID in each of generation 2:end
+    n₂Prd, n₂Clg = n₂Fam .* [par.nSib - par.nC7e, par.nC7e]
+    
+    # Generation 1: generate similar number of offspring in 2+ generation
+    n₁Fam = max(n₀Sir, n₀Dam)   # full sib groups from base
+    # - sibship sizes in 1st generation
+    n₁P8n, n₁C7e = Int.(ceil.([n₂Prd, n₂Clg]./n₁Fam))
+    # - total offspring in 1st generation
+    n₁Prd, n₁Clg = [n₁P8n, n₁C7e] .* n₁Fam
+    
+    # Overall number of offspring
+    nPrd, nClg = [n₁Prd + n₀, n₁Clg] + [n₂Prd, n₂Clg] .* (par.nG8n - 1)
+
+    # storage For SNP, after the sizes are determined above
+    snp = begin
+        prd = BitArray(undef, nSnp, 2nPrd)
+        snp₀ = view(prd, :, 1:2n₀)
+        copy!(snp₀, base.hap)     # the SNP copy
+        clg = BitArray(undef, nSnp, 2nClg)
+        dic = Dict(:prd => prd, :clg => clg)
+        (; dic...)
+    end
+
+    # For pedigree
+    ped = begin
+        prd = begin
+            pa, ma = rand_mate(g₀Sir, g₀Dam, n₁P8n)
+            DataFrame(
+                g8n = Int16.([zeros(n₀);
+                              ones(n₁Prd);
+                              repeat(2:par.nG8n, inner = n₂Prd)]),
+                id  = Int32.(1:nPrd),
+                sex = [g₀Sex; rand(Int8.(0:1), nPrd - n₀)],
+                sir = Int32.([zeros(Int32, n₀); pa; zeros(Int32, nPrd-n₀-n₁Prd)]),
+                dam = Int32.([zeros(Int32, n₀); ma; zeros(Int32, nPrd-n₀-n₁Prd)]),
+                tbv = zeros(Float32, nPrd), # TBV for the production trait
+                p7e = zeros(Float32, nPrd), # production phenotypes
+                val = zeros(Float32, nPrd)  # selection index
+            )
+        end
+        clg = begin
+            pa, ma = rand_mate(g₀Sir, g₀Dam, n₁C7e)
+            DataFrame(
+                g8n = Int16.([ones(n₁Clg); repeat(2:par.nG8n, inner = n₂Clg)]),
+                id  = Int32.(1:nClg),
+                sir = Int32.([pa; zeros(Int32, nClg - n₁Clg)]),
+                dam = Int32.([ma; zeros(Int32, nClg - n₁Clg)]),
+                tbv = zeros(Float32, nClg),
+                p7e = zeros(Float32, nClg)
+            )
+        end
+        dic = Dict(:prd => prd, :clg => clg)
+        (; dic...)
+    end
+    snp, ped
+end
+
+"""
+    function sample_alleles(r)
+---
+This function returns a vector of 1:2 of the same size of `r`,
+which is the vector recombination rates.
+`r` for the first locus of each chromosome is 0.5,
+such that they are independent.
+"""
+function sample_alleles(r)
+    n = length(r)
+    t = rand(n)
+    v = ones(Int, n)
+    k = 1
+    @inbounds for i in 1:n
+        (t[i] < r[i]) && (k = 3-k)
+        v[i] = k
+    end
+    v
+end
+
+"""
+    function gene_drop(df, r, psnp, osnp, qtl, h²)
+---
+Given a dataframe `df` of a generation, 
+this function drop genes in `prt_snp` specified by `df.sir` and `df.dam`
+int `off_snp` specified by `df.id`.
+When the genotypes of this genration are created,
+the breeding values, and phenotypes are also calculated.
+"""
+function gene_drop(df, r, psnp, osnp, qtl, h²)
+    Threads.@threads for x in eachrow(df)
+        gp = view(psnp, :, 2x.sir-1:2x.sir) # pa's genotypes
+        gm = view(psnp, :, 2x.dam-1:2x.dam) # ma's genotypes
+        op = view(osnp, :, 2x.id-1)         # id's haplotype from pa
+        om = view(osnp, :, 2x.id)           # id's haplotype from ma
+        ix = sample_alleles(r)
+        copy!(op, [gp[i, ix[i]] for i in 1:length(op)])
+        ix = sample_alleles(r)
+        copy!(om, [gm[i, ix[i]] for i in 1:length(om)])
+    end
+    fra = 2first(df.id) - 1      # from column in SNP genotypes
+    til = 2last(df.id)           # end column
+    snp = view(osnp, :, fra:til)
+    df[:, :tbv], df[:, :p7e] = phenotype(snp, qtl, h²)
 end
 
 """
@@ -43,247 +172,83 @@ Be careful that no range check is performed.
 """
 function select_nuclear(df, nSire, nDam)
     gp = groupby(df, :sex)
-    sires = last(sort(gp[1], :val), nSire).id
-    dams  = last(sort(gp[2], :val), nDam ).id
-    return [sires; dams]
+    sires = last(sort(gp[(sex=1,)], :val), nSire).id
+    dams  = last(sort(gp[(sex=0,)], :val), nDam ).id
+    return sort(sires), sort(dams)
 end
 
 """
-    function create_storage(base, par)
+    function calc_idx(ped, snp, cur, lqtl, par)
 ---
-This is a refactorized function for creating storage.
-My function before was too long, making it difficult for debugging.
-This will just create empty DataFrames for pedigree and traits,
-and BitArray for genotypes.
+Calculate selection index SNP and phenotype information up to current generation.
+Store the results in `cur[:, :val]`.
 
-The storage is created in one-go.
-This is to avoid too many times of memory allocations,
-which can crash the program.
-
-Finally knew how to use `view`.
-Use `view`s for gene-dropping.
+- Generations are treated as a fixed effect in the challenge group.
+- If `lqtl` is not empty, then its specified loci are fixed as fixed effects
 """
-function create_storage(base, par)
-    # Generation 0: (for simplicity, I copy the SNP into `snp_prd`)
-    n₀ = size(base[:hap])[2] ÷ 2 # base population size
-    nSnp = size(base[:hap])[1]
-    n₀Sir = begin                # valid even for more sires than dams
-        r = par.nDam / par.nSire     # female:male ratio
-        max(Int(floor(n₀/(1+r))), 1) # to make sure to have one male
-    end
-    n₀Dam = n₀ - n₀Sir
-    return n₀
-    # Generation 1: generate similar number of offspring as g-2:end
-    n₂Fam = max(par.nDam, par.nSire) # for generation 2:end
-    n₁Fam = max(n₀Sir, n₀Dam)
-    n₁prd = Int(floor(n₁Fam * (n₂Fam / n₁Fam * (par.nSib - par.nC7e))))
-    n₁clg = Int(floor(n₁Fam * (n₂Fam / n₁Fam * par.nC7e)))
+function calc_idx(ped, snp, cur, Q, par)
+    fra = findlast(x -> x == 0, ped.prd.g8n)
+    til = last(cur).id
+    gp = alleles2gt(view(snp.prd, :, 2fra+1:2til))
+    mp, sp = snp_blup(gp, ped.prd[:, :p7e][fra+1:til], par.h²[1], dd = par.dd)
 
-    # Generation 2:end
-    nGrn = par.nG8n - 1         # base is counted as one generation
-    n₂prd = nFam * (par.nSib -par.nC7e) # and rest generations
-    n₂clg = nFam * par.nC7e
-    nPrd = n₁prd + nGrn * n₂prd + n₀
-    nClg = n₁clg + nGrn * n₂clg
+    til = findlast(x -> x == first(cur).g8n, ped.clg.g8n)
+    gc = alleles2gt(view(snp.clg, :, 1:2til))
+    F = ped.clg.g8n[1:til]
+    mc, sc = snp_blup(gc, ped.clg[:,:p7e][1:til], par.h²[2], Q=Q, F=F, dd=par.dd)
 
-    # For SNP
-    snp_prd = BitArray(undef, nSnp, nPrd*2)
-    snp_clg = BitArray(undef, nSnp, nClg*2)
-
-    # For pedigree
-    prd = begin
-        g8n = Int16.([zeros(n₀);   # base population
-                      ones(n₁prd); # Int8 (128 g8n) is enough, but Int16
-                      repeat(2:par.nG8n, inner=n₂prd)])
-        id = 1:nPrd
-        sex = rand(Int8.(0:1), nPrd) # determine sex in very good advance
-        Sir = Array{Int32, 1}(undef, nPrd)
-        Dam = Array{Int32, 1}(undef, nPrd)
-        TBV = Array{Float32, 1}(undef, nPrd) # for production trait
-        T2C = Array{Float32, 1}(undef, nPrd) # TBV for disease trait
-        p7e = Array{Float32, 1}(undef, nPrd)
-        
-        DataFrame(g8n = g8n,
-                  id  = id,
-                  sex = sex,
-                  sir = Sir,
-                  dam = Dam,
-                  tbv = TBV,    # TBV for the production trait
-                  t2c = T2C,    # TBV for the binary trait
-                  p7e = p7e)    # phenotype for the production trait
-    end
+    tid = size(gp)[2]
+    cgp = view(gp, :, tid-nrow(cur)+1:tid) # genotypes of current generation
+    cur[:, :val] = cgp'sp + cgp'sc .* par.w4t
 end
 
 """
-    function create_storage(base, par, qtl)
+    function assign_pama(ped, sires, dams, nsib)
 ---
-It was determined to store all the genotypes of history.
-Determine array sizes for one-go genotype storage.
-This is to avoid too many times of memory allocations, 
-and garbage collection.
-GC may also cause program crash.
+Randomly mate `sires` and `dams` according to the sibship sizes `nsib`,
+and assign them into the parent columns of `ped`.
 """
-function create_storage(base, par, qtl)
-    # Generation 0:
-    n₀   = size(base[:hap])[2] ÷ 2 # base population size
-    nSnp = size(base[:hap])[1]
-    nSire = begin
-        r = par.nDam / par.nSire
-        Int(floor(n₀/(1+r)))
-    end
-    nDam = n₀ - nSire
-    
-    # Generation 1:
-    nSib = par.nDam * par.nSib ÷ nDam # sibship size
-    nClg = par.nDam * par.nC7e ÷ nDam # number challenged
-    nPrd = nSib - nClg
-    ped = random_mate(nSire, nDam, nSib)
-    nxt = gdrop(base[:hap], ped, base[:r])
-    ip, ic, hp, hc = test_sets(nDam, nSib, nClg)
-    bv₁, p₁ = phenotype(nxt, qtl[1], par.h²[1])
-    bv₂, p₂ = phenotype(nxt, qtl[2], par.h²[2], par.p8e)
-
-    # Storage, with simulated generation one included.
-    tPrd = nDam * nPrd + (par.nG8n - 1) * (par.nSib - par.nC7e) * par.nDam
-    tClg = nDam * nClg + (par.nG8n - 1) *  par.nC7e             * par.nDam
-
-    #- SNP genotypes
-    snp₁ = BitArray(undef, nSnp, tPrd*2)
-    snp₂ = BitArray(undef, nSnp, tClg*2)
-    snp₁[:, 1:length(hp)] = nxt[:, hp]
-    snp₂[:, 1:length(hc)] = nxt[:, hc]
-
-    #- Produciton population
-    prd = begin
-        t = (par.nSib - par.nC7e) * par.nDam
-        g8n = Int8.([ones(nPrd * nDam); repeat(2:par.nG8n, inner=t)])
-        id  = 1:tPrd
-        sex = rand(Int8.(0:1), tPrd) # determine sex in very good advance
-        Sir = Array{Int32, 1}(undef, tPrd)
-        Dam = Array{Int32, 1}(undef, tPrd)
-        TBV = Array{Float32, 1}(undef, tPrd)
-        T2C = Array{Float32, 1}(undef, tPrd) # TBV for disease trait
-        p7e = Array{Float32, 1}(undef, tPrd)
-        n₁  = length(ip)        # fill in generation one info
-        # !!!! OBS !!! Pedigree below
-        #     if to calculate A matrix, add n_base to 2+ generations.
-        Sir[1:n₁] = ped[ip, 1]
-        Dam[1:n₁] = ped[ip, 2]
-        TBV[1:n₁] = bv₁[ip]
-        T2C[1:n₁] = bv₂[ip]
-        p7e[1:n₁] = p₁[ip]
-        DataFrame(g8n = g8n,
-                  id  = id,
-                  sex = sex,
-                  sir = Sir,
-                  dam = Dam,
-                  tbv = TBV,    # TBV for the production trait
-                  t2c = T2C,    # TBV for the binary trait
-                  p7e = p7e)    # phenotype for the production trait
-    end
-
-    #- The challenged ones
-    clg = begin
-        t = par.nC7e * par.nDam
-        g8n = Int8.([ones(nClg * nDam); repeat(2:par.nG8n, inner = t)])
-        TBV = Array{Float32, 1}(undef, tClg)
-        p7e = Array{Float32, 1}(undef, tClg)
-        n₂ = length(ic)         # fill in info of generation one
-        TBV[1:n₂] = bv₂[ic]
-        p7e[1:n₂] = p₂[ic]
-        DataFrame(g8n = g8n, tbv = TBV, p7e = p7e)
-    end
-    snp₁, snp₂, prd, clg, length(ip), length(ic), length(hp), length(hc)
+function assign_pama(ped, sires, dams, nsib)
+    pa, ma = rand_mate(sires, dams, nsib)
+    ped[:, :sir] = pa
+    ped[:, :dam] = ma
 end
 
 """
-    function breeding_program(base, par, nsib; edit=false, fixed=false)
+    function breeding(base, par, qtl; edit = false, fixed = false)
 ---
-Do the breeding with the given parameter `par`.
-I always breed the first generation separately.
-One is to scale, if necessary, the base to the size of nuclear population.
-The other is for ease of merging generation data.
-Disk I/O is avoided as much as possible.
-
-## Memo
-A full pedigree should include size(base) rows of `0 0`.
+The breeding program.
+- `edit` is to instruct whether to edit top QTL or not.
+- `fixed` is to determine whether to trait the top QTL as fixed effect or not.
 """
-function breeding_program(base, par, qtl; edit=false, fixed=false)
-    # determine which QTL are known in the beginning.
-    topqtl = top_QTL(base[:hap], qtl[2], par.nk3n)
+function breeding(base, par, qtl; edit = false, fixed = false)
+    rkq = rank_QTL(base.hap, qtl[2]) # QTL rank in ↓ order
+    Q = fixed ? rkq[1:par.nK3n] : Int[] # whether to emphaize known QTL or not
+    @debug rkq[1:10]                    # print top QTL at debug level
+    # prepare pedigree and storage
+    snp, ped = create_storage(base, par)
+    prd, clg = groupby(ped.prd, :g8n), groupby(ped.clg, :g8n)
+    for ig in 1:par.nG8n-1
+        @info "Breeding of generation $ig of $(par.nG8n)"
+        # dropping and create geno-, pheno- types.
+        gene_drop(prd[(g8n=ig,)], base.r, snp.prd, snp.prd, qtl[1], par.h²[1])
+        gene_drop(clg[(g8n=ig,)], base.r, snp.prd, snp.clg, qtl[2], par.h²[2])
 
-    open(par.log, "a") do io    # top QTL decided in this repeat
-        println(io, join(topqtl, ' '))
+        edit && gedit(snp.prd, prd[(g8n=ig,)], popfirst!(rkq), par.e19e)
+
+        # - evaluation, saving the results in prd.val
+        calc_idx(ped, snp, prd[(g8n=ig,)], Q, par)
+        # some shortcuts below
+        #prd[(g8n=ig,)][:, :val] = prd[(g8n=ig,)][:, :tbv]
+
+        # - select breeders for next generation, and drop genes
+        sires, dams = select_nuclear(prd[(g8n=ig,)], par.nSire, par.nDam)
+
+        # - assign parents of the next generation
+        assign_pama(prd[(g8n=ig+1,)], sires, dams, par.nSib - par.nC7e)
+        assign_pama(clg[(g8n=ig+1,)], sires, dams, par.nC7e)
     end
-    Q = fixed ? abs.(topqtl) : Int[] # whether to deem the known QTL as fixed effects
-    
-    # general parameters
-    @info "Create storage and generation one"
-    snp₁, snp₂, prd, clg, f1, f2, f3, f4 = # f: from
-        create_storage(base, par, qtl)
-    # shorthands
-    nSire, nDam, nSib, nChallenge, percentage, generation =
-        par.nSire, par.nDam, par.nSib, par.nC7e, par.p8e, par.nG8n
-    ip, ic, hp, hc = test_sets(nDam, nSib, nChallenge)
-    l1, l2, l3, l4 = length.((ip, ic, hp, hc)) # lengths of generation 2+
-    h2 = begin                                 # for the binary trait
-        p = par.p8e             # percentage to be killed in challenge
-        z = pdf(Normal(), p)
-        par.h²[2]*z*z/(p*(1-p)) # ~0.25 here
-    end
-    for ig in 2:generation
-        @info "generation $ig"
-        # prepare for evaluation
-        
-        # OBS!!!
-        # select ID for nuclear from ig-1 on data of all previous generations
-        val = begin             # scores for selective candidates
-            # edit or emphasize on known QTL
-            if edit && length(topqtl) > 0
-                l = popfirst!(topqtl)
-                gedit(snp₁, l, par.e19e)
-            end
-            # the production trait
-            g1 = alleles2gt(view(snp₁, :, 1:f3))
-            p1 = select(prd[prd.g8n .< ig, :], :p7e).p7e
-            m1, s1 = snp_blup(g1, p1, par.h²[1], dd = par.dd)
-            # the challenge trait
-            g2 = alleles2gt(view(snp₂, :, 1:f4))
-            p2 = select(clg[clg.g8n .< ig, :], :p7e).p7e
-            m2, s2 = begin
-                # generation as fixed effects
-                f = select(clg[clg.g8n .< ig, :], :g8n).g8n
-                snp_blup(g2, p2, h2, Q=Q, F=f, dd = par.dd)
-            end
-            g1's1 + g1's2 .* par.w4t
-        end
-        
-        df = select(prd[(prd.g8n .== ig-1), :], :id, :sex)
-        tl = length(df.id) - 1
-        df.val = vec(val)[end-tl:end]
-        # or, select(prd[(prd.g8n .== ig-1), :], :id, :sex, :tbv)
-        nuclear = select_nuclear(df, nSire, nDam)
-        
-        # simulate current generation
-        ped = random_mate(nuclear, nSire, nDam, nSib)
-        nxt = gdrop(snp₁, ped, base[:r])
-        bv₁, p₁ = phenotype(nxt, qtl[1], par.h²[1])
-        bv₂, p₂ = phenotype(nxt, qtl[2], par.h²[2], par.p8e)
-        
-        # update storage.  codes below are ugly.
-        prd.tbv[f1+1:f1+l1] = bv₁[ip]
-        prd.t2c[f1+1:f1+l1] = bv₂[ip]
-        prd.p7e[f1+1:f1+l1] =  p₁[ip]
-        prd.sir[f1+1:f1+l1] = ped[ip, 1]
-        prd.dam[f1+1:f1+l1] = ped[ip, 2]
-        clg.tbv[f2+1:f2+l2] = bv₂[ic]
-        clg.p7e[f2+1:f2+l2] =  p₂[ic]
-        snp₁[:, f3+1:f3+l3] = nxt[:, hp]
-        snp₂[:, f4+1:f4+l4] = nxt[:, hc]
-        f1 += l1
-        f2 += l2
-        f3 += l3
-        f4 += l4
-    end
-    return prd, snp₁            # bitset snp is only of a few GiB.
+    @info "Generation: $(par.nG8n), dropping only in the last generation"
+    gene_drop(prd[(g8n=par.nG8n,)], base.r, snp.prd, snp.prd, qtl[1], par.h²[1])
+    return ped.prd, snp.prd         # only needed for summary
 end

@@ -32,7 +32,7 @@ function t_2021_08_06()
     for i in 1:nrpt
         @info "====== Repeat $i of $nrpt ======"
         qtl = sim_QTL(base, nqtl, nqtl)
-        ped, snp = breeding(base, par, qtl, edit=true)
+        ped, snp = breeding(base, par, qtl, fixed=true)
         df = summarize(ped)
         df.rpt = ones(Int32, nrow(df)) .* i
         append!(rst, df)

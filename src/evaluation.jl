@@ -94,10 +94,7 @@ changed to
 """
 function snp_blup(g, p, h²; Q = [], F = [], dd=0)
     nlc, nid = size(g)
-    @info join(["",
-                "SNP-BLUP",
-                "  $nlc SNP",
-                "  $nid ID"], "\n")
+    @debug "SNP BLUP: evaluating SNP effects" nlc nid
 
     # λ = (σₑ²/σₐ²) * nlc  # changed to below
     λ = (1. - h²)/h² * nlc + dd
@@ -110,7 +107,6 @@ function snp_blup(g, p, h²; Q = [], F = [], dd=0)
     end
     nf = size(X)[2]
     sl = nlc + nf               # size of lhs
-    #α, β = Float32[1, 0]        # scales for GEMM
     lhs = begin
         tmp = Array{Float32, 2}(undef, sl, sl)
 
@@ -160,27 +156,3 @@ function snp_blup(g, p, h²; Q = [], F = [], dd=0)
     # return fixed effects and SNP effects separately
     rhs[1:nf], rhs[nf+1:end]
 end
-
-# Other methods, e.g., bayes-α, β, γ, π, may be added.
-#=
-"""
-    function evaluate(gsdat)
----
-Vector `gsdat` has data of `1+` traits for evaluation with SNP BLUP method.
-Each trait has `g`enotypes, `p`henotypes, trait `σₐ²`, `σₑ²`, 
-`w`eight for a select index, `f`ixed effect vector, and `s`NP to be
-fitted as fixed effects.
-
-Returns `EBV(1)⋅w₁ + EBV(2)⋅w₂ + ...` of ID in `g₁` as a vector
-"""
-function evaluate(gsdat)
-    t = gsdat[1]                # shorthand for production data
-    f1, s1 = snp_blup(t.g, t.p, σₐ² = t.a, σₑ² = t.e, Q = t.s, F = t.f)
-    w1 = t.w
-    t = gsdat[2]                # shorthand for challenge data
-    f2, s2 = snp_blup(t.g, t.p, σₐ² = t.a, σₑ² = t.e, Q = t.s, F = t.f)
-    t = gsdat[2]
-    w2 = t.w
-    
-end
-=#

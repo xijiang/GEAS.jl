@@ -16,12 +16,9 @@ Note:
 - Randomly flip the sign of the effects may be a solution.
 """
 function sim_QTL(base, nqtl...; d = Laplace())
-    @info join(["",
-                "Sample QTL locations and effects",
-                "QTL effects were simulated such that, var(BV) ≈ 1"],
-                "\n")
-    pos = base[:pos]
-    GT  = base[:hap]            # short hands
+    @debug "Sample QTL locations and effects" "Wit the QTL effects, var(BV) ≈ 1"
+    pos = base.pos
+    GT  = base.hap              # short hands
     tsnp = size(pos)[1]
     ntrt = length(nqtl)
 
@@ -45,12 +42,9 @@ end
 Simulation of QTL with Gamma distribution Γ(0.4).
 """
 function sim_gamma_QTL(base, nqtl...)
-    @info join(["",
-                "Sample QTL locations and effects",
-                "QTL effects were simulated such that, var(BV) ≈ 1"],
-                "\n")
-    pos = base[:pos]
-    GT  = base[:hap]            # short hands
+    @debug "Sample QTL locations and effects" "Wit the QTL effects, var(BV) ≈ 1"
+    pos = base.pos
+    GT  = base.hap              # short hands
     tsnp = size(pos)[1]
     ntrt = length(nqtl)
 
@@ -96,12 +90,9 @@ however, are correlated.
 For example, they can be reasonably negative correlated.
 """
 function sim_pt_QTL(base, nqtl, d)
-    @info join(["",
-                "Sample pleiotropic QTL for two trait",
-                "The pleiotropic effects of the QTL are define by MV distribution `d`"],
-               "\n")
-    pos = base[:pos]
-    GT  = base[:hap]            # short hands
+    @debug "Sample pleiotropic QTL for two trait" "QTL effects are define by `d`"
+    pos = base.pos
+    GT  = base.hap              # short hands
     tsnp = size(pos)[1]
     qinfo = QTL[]
     # two traits share below QTL

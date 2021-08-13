@@ -1,4 +1,100 @@
 """
+    function compact_ped(ped)
+---
+This function is to simplify inbreeding calculation.
+With *A* matrix, full-sibs have the same inbreeding value.
+This function returns a dataframe, taking the first ID of a full sibship.
+There is also a column counting the sibship size.
+"""
+function compact_ped(ped)
+    t = DataFrame(g8n=Int16[], id=Int32[], ic=Float64[])
+    pa = ma = count = 0
+    for x in eachrow(ped)
+        if x.sir != pa && x.dam != ma
+            pa, ma = x.sir, x.dam
+            push!(t, (x.g8n, x.id, 0.))
+        end
+    end
+    v = combine(groupby(ped, [:g8n, :sir, :dam]), nrow => :count)
+    t.count = v.count[2:end]
+    t
+end
+
+"""
+    function summarize(ped)
+---
+Summarize the results from function `breeding`.
+Return results in a DataFrame
+
+# Inbreeding using A matrix
+- Recursive method is used, as here we have large full sibship, 
+    only one calculation is needed.
+- Inbreeding calculation is also multiple threaded
+
+# Returns
+- mean inbreeding coefficients by generation
+- mean TBV by generation
+"""
+function summarize(ped)
+    gp = groupby(ped, :g8n)
+    rst = combine(gp[2:end], :tbv => mean => :mtbv, :tbv => var => :vg)
+    mpd = Matrix(select(ped, :sir, :dam)) # my pedigree, for func `kinship`
+    
+    # Inbreeding using A matrix, create a compact pedigree below
+    cpd = compact_ped(ped)
+    @Threads.threads for i in 1:nrow(cpd)
+        cpd[i, :ic] = kinship(mpd, cpd[i, :id], cpd[i,:id]) - 1
+    end
+    # mean inbreeding coefficients with A matrix
+    rst.mica = combine(groupby(cpd, :g8n),
+                      [:ic, :count] => ((x, y) -> x'y/sum(y)) => :mica).mica
+    rst
+end
+
+"""
+    function sumsum(df)
+---
+This `sumsum` is to summarize some summarized results.
+The results, in a `DataFrame`, are grouped by repeats.
+Then, the `combine` function is used.
+"""
+function sumsum(df)
+    gp = groupby(df, :rpt)
+    m = copy(gp[1])
+    for j in 2:ncol(m)-1
+        for i in 2:length(gp)
+            m[:, j] += gp[i][:, j]
+        end
+        m[:, j] ./= last(df).rpt
+    end
+    m
+end
+
+"""
+    function allele_frq_flux(prd, snp, loci)
+---
+Return the frequency change of `loci` over generations.
+"""
+function allele_frq_flux(prd, snp, loci)
+    gp = groupby(prd, :g8n)
+    ng = length(gp)
+    df = DataFrame()
+    ft = []                     # [[from, to]]
+    for df in gp
+        fra, til = 2first(df.id) - 1, 2last(df.id)
+        push!(ft, [fra, til])
+    end
+    for l in loci
+        frq = Float64[]
+        for (fra, til) in ft
+            push!(frq, mean(view(snp, l, fra:til)))
+        end
+        df[!, string(l)] = frq
+    end
+    df
+end
+
+"""
     function bp_summary(prd, snp, qtl, dir)
 ---
 Summarize simulation results of the `b`reeding `p`rogram.

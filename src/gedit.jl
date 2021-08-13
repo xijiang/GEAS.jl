@@ -1,51 +1,42 @@
 """
-    function gedit(snp, pos, sr)
+    function gedit(svc, sr, tov)
 ---
-With the SNP genotypes `snp` on position `pos`.
-If `pos`>0, make them alleles at `pos` 1, or 0, with a successful rate, `sr`.
+Change alleles in SNP vector `svc` to `tov` (0/1),
+with a successful rate, `sr`.
 """
-function gedit(snp, pos, sr)
-    nallele = size(snp)[2]
-    l = abs(pos)
-    br = rand(Bernoulli(sr), nallele) # succeeded editing
-    if pos > 0
-        snp[l, br] .= 1
-    else
-        snp[l, br] .= 0
-    end
+function gedit(snp, prd, l, sr)
+    @debug "editing" $l
+    tov = l > 0 ? 1 : 0
+    fra, til = 2first(prd.id)-1, 2last(prd.id)
+    svc = view(snp, abs(l), fra:til)
+    br = rand(Bernoulli(sr), length(svc)) # succeeded editing
+    svc[br] .= tov
 end
 
 """
-    function top_QTL(snp, qtl, n, onVar=false)
+    function rank_QTL(snp, qtl; onVar=false)
 ---
-Return the row number of top `n` QTL `qtl` in `snp`, on variance (`2pqa^2`)
-or on `effect`.
-
-## Amendment
-- I realized that it's better to decide the QTL and their order to edit in the beginning.
-- will return positions of the QTL
-- if a position is positive, then allele `1` has positive effect.  Otherwise, negagive.
+Rank QTL on either `2pqa^2` or their absolute effects, in descending order.
+If ranking on effects, allele frequecies of ≤0.1, or ≥0.9 are put
+at the bottom.
+If a position is positive, then allele `1` has positive effect.
+Otherwise, negagive.
 """
-function top_QTL(snp, qtl, n; onVar=false)
+function rank_QTL(snp, qtl; onVar=false)
+    t = 0.1                     # threshold when ranking on abs effect
     p = vec(mean(snp, dims=2))
-    x = qtl.pos                 # short hands
-    e = qtl.effect
-
+    e = abs.(qtl.effect)
     if onVar
         q = 1 .- p
-        v = 2 .* p[x] .* q[x] .* (e .^ 2) # 2pqa^2
-        o = sortperm(v, rev=true)
-        return Int.(x[o[1:n]] .* sign.(e[o[1:n]]))
+        v = 2 .* p[qtl.pos] .* q[qtl.pos] .* (e .^ 2)
+        o = sortperm(v, rev=true) # order
+        return Int.(sign.(qtl.effect[o])) .* qtl.pos[o]
     else
-        o = sortperm(abs.(e), rev=true)
-        r = Int[]               # results
-        for i in 1:length(o)
-            j = o[i]
-            k = x[j]            # real SNP position
-            p[k] <= 0.1 && continue
-            p[k] >= 0.9 && continue
-            push!(r, Int(sign(e[j]) * k))
-            (length(r) == n) && (return r)
+        for i in length(e)
+            xp = p[qtl.pos[i]]
+            xp <= t || xp >= 1-t && (e[i] = 0)
         end
+        o = sortperm(e, rev=true)
+        return Int.(sign.(qtl.effect[o])) .* qtl.pos[o]
     end
 end

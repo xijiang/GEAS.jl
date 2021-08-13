@@ -31,6 +31,7 @@ include("sim-QTL.jl")
 include("structs.jl")
 include("summarize.jl")
 include("workflow.jl")
+include("check-par.jl")
 
 
 # Test files
