@@ -223,7 +223,7 @@ The breeding program.
 """
 function breeding(base, par, qtl; edit = false, fixed = false)
     rkq = rank_QTL(base.hap, qtl[2]) # QTL rank in ↓ order
-    Q = fixed ? rkq[1:par.nK3n] : Int[] # whether to emphaize known QTL or not
+    Q = fixed ? abs.(rkq[1:par.nK3n]) : Int[] # whether to emphaize known QTL or not
     @debug rkq[1:10]                    # print top QTL at debug level
     # prepare pedigree and storage
     snp, ped = create_storage(base, par)
