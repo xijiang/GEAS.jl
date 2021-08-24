@@ -16,6 +16,49 @@ function rand_mate(Sires, Dams, nSib)
 end
 
 """
+    function gene_drop(df, r, psnp, osnp, qtl, h²)
+---
+Given a dataframe `df` of a generation, 
+
+- this function drop genes in `prt_snp` specified by `df.sir` and `df.dam`
+int `off_snp` specified by `df.id`.
+When the genotypes of this genration are created,
+the breeding values, and phenotypes are also calculated.
+Before phenotypes were calculated, editing is done with editing information `ei`.
+"""
+function gene_drop(df, r, psnp, osnp, qtl, h², ei=(lc=0, sr=1))
+    Threads.@threads for x in eachrow(df)
+        gp = view(psnp, :, 2x.sir-1:2x.sir) # pa's genotypes
+        gm = view(psnp, :, 2x.dam-1:2x.dam) # ma's genotypes
+        op = view(osnp, :, 2x.id-1)         # id's haplotype from pa
+        om = view(osnp, :, 2x.id)           # id's haplotype from ma
+        ix = sample_alleles(r)
+        copy!(op, [gp[i, ix[i]] for i in 1:length(op)])
+        ix = sample_alleles(r)
+        copy!(om, [gm[i, ix[i]] for i in 1:length(om)])
+    end
+    fra = 2first(df.id) - 1      # from column in SNP genotypes
+    til = 2last(df.id)           # end column
+    snp = view(osnp, :, fra:til)
+    ei.lc != 0 && begin         # editing right after gene dropping
+        tov = ei.lc > 0 ? 1 : 0
+        br = rand(Bernoulli(ei.sr), til-fra+1)
+        snp[abs(ei.lc), br] .= tov
+    end
+    df[:, :tbv], df[:, :p7e] = phenotype(snp, qtl, h²)
+end
+#=
+gedit(snp.prd, prd[(g8n=ig,)], popfirst!(rkq), par.e19e)
+                            function gedit(snp, prd, l, sr)
+    @debug "editing" l
+    tov = l > 0 ? 1 : 0
+    fra, til = 2first(prd.id)-1, 2last(prd.id)
+    svc = view(snp, abs(l), fra:til)
+    br = rand(Bernoulli(sr), length(svc)) # succeeded editing
+    svc[br] .= tov
+end
+=#
+"""
     function create_storage(base, par)
 ---
 This is a refactorized function for creating storage.
@@ -39,7 +82,7 @@ This function:
 5. sex sampling determined in good advance
 6. determine parents of the 1st generation.
 """
-function create_storage(base, par)
+function create_storage(base, par, qtl)
     # the pedigree are of 3 parts: the base, 1st generation, 2:end generations
     nSnp = size(base.hap)[1]
 
@@ -108,6 +151,11 @@ function create_storage(base, par)
         dic = Dict(:prd => prd, :clg => clg)
         (; dic...)
     end
+    prd = @view ped.prd[(ped.prd.g8n .== 1), :]
+    clg = @view ped.clg[(ped.clg.g8n .== 1), :]
+    gene_drop(prd, base.r, snp.prd, snp.prd, qtl[1], par.h²[1])
+    gene_drop(clg, base.r, snp.prd, snp.clg, qtl[2], par.h²[2])
+    calc_idx(ped, snp, prd, [], par)
     snp, ped
 end
 
@@ -129,32 +177,6 @@ function sample_alleles(r)
         v[i] = k
     end
     v
-end
-
-"""
-    function gene_drop(df, r, psnp, osnp, qtl, h²)
----
-Given a dataframe `df` of a generation, 
-this function drop genes in `prt_snp` specified by `df.sir` and `df.dam`
-int `off_snp` specified by `df.id`.
-When the genotypes of this genration are created,
-the breeding values, and phenotypes are also calculated.
-"""
-function gene_drop(df, r, psnp, osnp, qtl, h²)
-    Threads.@threads for x in eachrow(df)
-        gp = view(psnp, :, 2x.sir-1:2x.sir) # pa's genotypes
-        gm = view(psnp, :, 2x.dam-1:2x.dam) # ma's genotypes
-        op = view(osnp, :, 2x.id-1)         # id's haplotype from pa
-        om = view(osnp, :, 2x.id)           # id's haplotype from ma
-        ix = sample_alleles(r)
-        copy!(op, [gp[i, ix[i]] for i in 1:length(op)])
-        ix = sample_alleles(r)
-        copy!(om, [gm[i, ix[i]] for i in 1:length(om)])
-    end
-    fra = 2first(df.id) - 1      # from column in SNP genotypes
-    til = 2last(df.id)           # end column
-    snp = view(osnp, :, fra:til)
-    df[:, :tbv], df[:, :p7e] = phenotype(snp, qtl, h²)
 end
 
 """
@@ -220,35 +242,36 @@ end
 The breeding program.
 - `edit` is to instruct whether to edit top QTL or not.
 - `fixed` is to determine whether to trait the top QTL as fixed effect or not.
+
+Note:
+The counting of production DataFrame start from 0.
+Its `groupby` indices are `+`.
 """
 function breeding(base, par, qtl; edit = false, fixed = false)
     rkq = rank_QTL(base.hap, qtl[2]) # QTL rank in ↓ order
     Q = fixed ? abs.(rkq[1:par.nK3n]) : Int[] # whether to emphaize known QTL or not
     @debug rkq[1:10]                    # print top QTL at debug level
     # prepare pedigree and storage
-    snp, ped = create_storage(base, par)
-    prd, clg = groupby(ped.prd, :g8n), groupby(ped.clg, :g8n)
-    for ig in 1:par.nG8n-1
+    snp, ped = create_storage(base, par, qtl)
+    prd, clg = groupby(ped.prd, :g8n), groupby(ped.clg, :g8n) # shorthands
+    for ig in 2:par.nG8n-1
         @info "Breeding generation $ig of $(par.nG8n)"
-        # dropping and create geno-, pheno- types.
-        gene_drop(prd[(g8n=ig,)], base.r, snp.prd, snp.prd, qtl[1], par.h²[1])
-        gene_drop(clg[(g8n=ig,)], base.r, snp.prd, snp.clg, qtl[2], par.h²[2])
-
-        edit && gedit(snp.prd, prd[(g8n=ig,)], popfirst!(rkq), par.e19e)
-
-        # - evaluation, saving the results in prd.val
-        calc_idx(ped, snp, prd[(g8n=ig,)], Q, par)
-        # some shortcuts below
-        #prd[(g8n=ig,)][:, :val] = prd[(g8n=ig,)][:, :tbv]
-
         # - select breeders for next generation, and drop genes
-        sires, dams = select_nuclear(prd[(g8n=ig,)], par.nSire, par.nDam)
+        sires, dams = select_nuclear(prd[ig], par.nSire, par.nDam)
+        
+        # Locus to be edited: 0 -> nothing, positive -> 1, negtive -> 0, abs -> loci
+        elc = edit ? popfirst!(rkq) : 0
 
-        # - assign parents of the next generation
-        assign_pama(prd[(g8n=ig+1,)], sires, dams, par.nSib - par.nC7e)
-        assign_pama(clg[(g8n=ig+1,)], sires, dams, par.nC7e)
+        # - assign parents of the next generation, and drop gene into it
+        assign_pama(prd[ig+1], sires, dams, par.nSib - par.nC7e)
+        gene_drop(prd[ig+1], base.r, snp.prd, snp.prd, qtl[1], par.h²[1],
+                  (lc=elc, sr=par.e19e))
+        
+        assign_pama(clg[ig], sires, dams, par.nC7e)
+        gene_drop(clg[ig], base.r, snp.prd, snp.clg, qtl[2], par.h²[2])
+
+        # - evaluation the previous generation, saving results in prd.val
+        calc_idx(ped, snp, prd[(g8n=ig-1,)], Q, par)
     end
-    @info "Generation: $(par.nG8n), dropping only in the last generation"
-    gene_drop(prd[(g8n=par.nG8n,)], base.r, snp.prd, snp.prd, qtl[1], par.h²[1])
     return ped.prd, snp.prd         # only needed for summary
 end

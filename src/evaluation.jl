@@ -80,7 +80,7 @@ function fxmat(F)
 end
 
 """
-    function snp_blup(g, p; σₐ² = 1, σₑ² = 1, Q = [], F = [])
+    function snp_blup(g, p, h²; Q = [], F = [], dd=0)
 ---
 The plain SNP-BLUP procedure.
 Returns E(population) and  a vector of SNP effects.
@@ -93,6 +93,7 @@ changed to
 `function snp_blup(g, p, h²; Q = [], F = [])`, on 2021-Apr.-1
 """
 function snp_blup(g, p, h²; Q = [], F = [], dd=0)
+    BLAS.set_num_threads(24)
     nlc, nid = size(g)
     @debug "SNP BLUP: evaluating SNP effects" nlc nid
 
