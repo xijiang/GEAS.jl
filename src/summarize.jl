@@ -21,7 +21,7 @@ function compact_ped(ped)
 end
 
 """
-    function summarize(ped)
+    function summarize(ped, snp, qtl)
 ---
 Summarize the results from function `breeding`.
 Return results in a DataFrame
@@ -35,9 +35,15 @@ Return results in a DataFrame
 - mean inbreeding coefficients by generation
 - mean TBV by generation
 """
-function summarize(ped)
+function summarize(ped, snp, qtl)
     gp = groupby(ped, :g8n)
-    rst = combine(gp[2:end], :tbv => mean => :mtbv, :tbv => var => :vg)
+    gp = alleles2gt(view(snp.prd, :, 2fra+1:2til))
+    bgt = alleles2gt(view(snp, qtl.pos, :))
+    ped.clg = bgt'qtl.effect
+    rst = combine(gp[2:end], :tbv => mean => :mpbv,
+                  :tbv => var => :pvg,
+                  :clg => mean => :mcbv,
+                  :clg => var => :cvg)
     mpd = Matrix(select(ped, :sir, :dam)) # my pedigree, for func `kinship`
     
     # Inbreeding using A matrix, create a compact pedigree below

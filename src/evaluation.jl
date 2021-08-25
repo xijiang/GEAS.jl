@@ -93,7 +93,7 @@ changed to
 `function snp_blup(g, p, h²; Q = [], F = [])`, on 2021-Apr.-1
 """
 function snp_blup(g, p, h²; Q = [], F = [], dd=0)
-    BLAS.set_num_threads(24)
+    #BLAS.set_num_threads(24)
     nlc, nid = size(g)
     @debug "SNP BLUP: evaluating SNP effects" nlc nid
 

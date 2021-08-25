@@ -155,7 +155,8 @@ function create_storage(base, par, qtl)
     clg = @view ped.clg[(ped.clg.g8n .== 1), :]
     gene_drop(prd, base.r, snp.prd, snp.prd, qtl[1], par.h²[1])
     gene_drop(clg, base.r, snp.prd, snp.clg, qtl[2], par.h²[2])
-    calc_idx(ped, snp, prd, [], par)
+    #calc_idx(ped, snp, prd, [], par)
+    prd[:, :val] = prd.p7e      # 1st generation on phenotype to save time
     snp, ped
 end
 
@@ -236,6 +237,7 @@ function assign_pama(ped, sires, dams, nsib)
     ped[:, :dam] = ma
 end
 
+#=
 """
     function breeding(base, par, qtl; edit = false, fixed = false)
 ---
@@ -274,4 +276,61 @@ function breeding(base, par, qtl; edit = false, fixed = false)
         calc_idx(ped, snp, prd[(g8n=ig-1,)], Q, par)
     end
     return ped.prd, snp.prd         # only needed for summary
+end
+=#
+
+"""
+    function breeding(ped, snp, qtl, r, par)
+---
+The breeding program.
+The `base`, which is small, is expanded to generation 1, with geno- and phenotypes.
+This creates a more general/common base for later breeding with different methods.
+"""
+function breeding(ped, snp, base, qtl, par)
+    rkq = rank_QTL(base.hap, qtl[2]) # QTL ranking in ↓ order
+    Q = par.fix ? abs.(rkq[1:par.nK3n]) : Int[]
+    prd, clg = groupby(ped.prd, :g8n), groupby(ped.clg, :g8n) # shorthands
+    for ig in 2:par.nG8n
+        @info "Breeding generation $ig of $(par.nG8n)"
+        sires, dams = select_nuclear(prd[ig], par.nSire, par.nDam)
+        assign_pama(prd[ig+1], sires, dams, par.nSib - par.nC7e)
+        elc = par.edit ? popfirst!(rkq) : 0
+        gene_drop(prd[ig+1], base.r, snp.prd, snp.prd, qtl[1], par.h²[1],
+                    (lc = elc, sr = par.e19e))
+        assign_pama(clg[ig], sires, dams, par.nC7e)
+        gene_drop(clg[ig], base.r, snp.prd, snp.clg, qtl[2], par.h²[2])
+        calc_idx(ped, snp, prd[ig+1], Q, par)
+    end
+end
+
+"""
+    function simple_breeding(ped, snp, qtl, par, op)
+---
+To select on `TBV`, `phenotypes`, or `EBV` on the production trait.
+
+"""
+function simple_breeding(ped, snp, base, qtl, par, op)
+    prd, clg = groupby(ped.prd, :g8n), groupby(ped.clg, :g8n) # shorthands
+    for ig in 2:par.nG8n
+        @info "Breeding generation $ig of $(par.nG8n)"
+        cur = prd[ig+1]
+        sires, dams = select_nuclear(prd[ig], par.nSire, par.nDam)
+        assign_pama(cur, sires, dams, par.nSib - par.nC7e)
+        gene_drop(cur, base.r, snp.prd, snp.prd, qtl[1], par.h²[1])
+        if op == 1
+            cur[:, :val] = cur.tbv
+        elseif op == 2
+            cur[:, :val] = cur.p7e
+        else
+            fra = findlast(x -> x == 0, ped.prd.g8n)
+            til = last(cur).id
+            gp = alleles2gt(view(snp.prd, :, 2fra+1:2til))
+            mp, sp = snp_blup(gp, ped.prd[:, :p7e][fra+1:til],
+                              par.h²[1], dd = par.dd)
+
+            tid = size(gp)[2]
+            cgp = view(gp, :, tid-nrow(cur)+1:tid) # genotypes of current generation
+            cur[:, :val] = cgp'sp
+        end
+    end
 end
