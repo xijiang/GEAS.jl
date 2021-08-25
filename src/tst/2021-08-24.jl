@@ -48,11 +48,13 @@ end
 Test selection on `TBV`, `phenotype`, and `SNP-BLUP` on production trait only.
 """
 function t_one_trait()
-    nrpt = 30
+    nrpt = 1
     isdir("dat/tmp") || mkpath("dat/tmp")
     @load "dat/run/base.jld2" base
-    par = gpar(500, false, false)
-
+    nqtl = 500
+    par = gpar(nqtl, false, false)
+    mtd = ["TBV", "phenotype", "EBV"]
+    
     rst = DataFrame()
     for ir in 1:nrpt
         qtl = sim_QTL(base, par.nQTL...)
@@ -62,11 +64,12 @@ function t_one_trait()
         serialize("dat/tmp/ped.ser", ped)
         @info "===== Breeding generation 2-$(par.nG8n), on TBV ====="
         for op in 1:3
+            println("----- Selection on $(mtd[op]) -----")
             snp = deserialize("dat/tmp/snp.ser")
             ped = deserialize("dat/tmp/ped.ser")
             simple_breeding(ped, snp, base, qtl, par, op)
         end
-        df = summarize(ped.prd, snp, qtl)
+        df = summarize(ped.prd, snp, qtl[2])
         df.method = ones(Int, nrow(df)) .* op
         df.repeat = ones(Int, Nrow(df)) .* ir
         append!(rst, df)
