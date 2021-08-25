@@ -37,7 +37,6 @@ Return results in a DataFrame
 """
 function summarize(ped, snp, qtl)
     gp = groupby(ped, :g8n)
-    gp = alleles2gt(view(snp.prd, :, 2fra+1:2til))
     bgt = alleles2gt(view(snp, qtl.pos, :))
     ped.clg = bgt'qtl.effect
     rst = combine(gp[2:end], :tbv => mean => :mpbv,

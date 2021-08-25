@@ -1,4 +1,4 @@
-using JLD2, DataFrames, Serialization
+using JLD2, DataFrames, Serialization, LinearAlgebra
 #, Distributions, Serialization, Dates, Statistics, DataFrames
 import GEAS:breeding, sim_QTL, summarize, create_storage, simple_breeding
 
@@ -48,7 +48,7 @@ end
 Test selection on `TBV`, `phenotype`, and `SNP-BLUP` on production trait only.
 """
 function t_one_trait()
-    nrpt = 1
+    nrpt = 30
     isdir("dat/tmp") || mkpath("dat/tmp")
     @load "dat/run/base.jld2" base
     nqtl = 500
@@ -68,47 +68,12 @@ function t_one_trait()
             snp = deserialize("dat/tmp/snp.ser")
             ped = deserialize("dat/tmp/ped.ser")
             simple_breeding(ped, snp, base, qtl, par, op)
+            df = summarize(ped.prd, snp, qtl[2])
+            df.method = ones(Int, nrow(df)) .* op
+            df.repeat = ones(Int, Nrow(df)) .* ir
+            append!(rst, df)
         end
-        df = summarize(ped.prd, snp, qtl[2])
-        df.method = ones(Int, nrow(df)) .* op
-        df.repeat = ones(Int, Nrow(df)) .* ir
-        append!(rst, df)
     end
     serialize("dat/rst/one-trait.ser", rst)
     rst
 end
-
-
-#=
-function append_rst(rst, ped, nqtl, method, i)
-    df = summarize(ped)
-    ng = nrow(df)
-    df.nqtl = ones(Int, ng) .* nqtl
-    df.method = ones(Int, ng) .* method
-    df.repeat = ones(Int, ng) .* i
-    append!(rst, df)
-end
-
-function t_2021_08_16(file)
-    @load "dat/run/base.jld2" base
-    nrpt = 30
-    rst = DataFrame()
-    for nqtl in [100, 500]
-        par = vnqtl(nqtl)
-        for i in 1:nrpt
-            @info "==== Repeat $i of $nrpt ===="
-            qtl = sim_QTL(base, nqtl, nqtl)
-            
-            ped, snp = breeding(base, par, qtl)
-            append_rst(rst, ped, nqtl, 1, i)
-            
-            ped, snp = breeding(base, par, qtl, fixed=true)
-            append_rst(rst, ped, nqtl, 2, i)
-
-            ped, snp = breeding(base, par, qtl, edit=true)
-            append_rst(rst, ped, nqtl, 3, i)
-        end
-    end
-    serialize(file, rst)
-end
-=#
