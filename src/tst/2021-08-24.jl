@@ -71,7 +71,7 @@ function t_one_trait()
             simple_breeding(ped, snp, base, qtl, par, op)
             df = summarize(ped.prd, snp.prd, qtl[2])
             df.method = ones(Int, nrow(df)) .* op
-            df.repeat = ones(Int, Nrow(df)) .* ir
+            df.repeat = ones(Int, nrow(df)) .* ir
             append!(rst, df)
         end
     end
