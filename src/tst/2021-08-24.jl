@@ -48,6 +48,7 @@ end
 Test selection on `TBV`, `phenotype`, and `SNP-BLUP` on production trait only.
 """
 function t_one_trait()
+    BLAS.set_num_threads(12)
     nrpt = 30
     isdir("dat/tmp") || mkpath("dat/tmp")
     @load "dat/run/base.jld2" base
@@ -68,7 +69,7 @@ function t_one_trait()
             snp = deserialize("dat/tmp/snp.ser")
             ped = deserialize("dat/tmp/ped.ser")
             simple_breeding(ped, snp, base, qtl, par, op)
-            df = summarize(ped.prd, snp, qtl[2])
+            df = summarize(ped.prd, snp.prd, qtl[2])
             df.method = ones(Int, nrow(df)) .* op
             df.repeat = ones(Int, Nrow(df)) .* ir
             append!(rst, df)
