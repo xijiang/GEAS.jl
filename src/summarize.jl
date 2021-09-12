@@ -76,6 +76,23 @@ function sumsum(df)
 end
 
 """
+    function sum_qtl_frq(prd, snp, qtl)
+---
+QTL frequency changes in the production 
+"""
+function sum_qtl_frq(prd, snp, qtl)
+    gg = groupby(prd, :g8n)     # group on generation
+    fq = Float64[]
+    for grp in gg
+        fra = 2first(grp).id - 1
+        til = 2last(grp).id
+        qa = view(snp, qtl.pos, fra:til)
+        append!(fq, mean(qa, dims=2))
+    end
+    reshape(fq, length(gg), :)
+end
+
+"""
     function allele_frq_flux(prd, snp, loci)
 ---
 Return the frequency change of `loci` over generations.
