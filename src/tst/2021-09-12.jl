@@ -21,9 +21,8 @@ function gpar(nqtl)
     )
 end
 
-function t_2021_09_12()
+function t_2021_09_12(nrpt = 10)
     BLAS.set_num_threads(12)
-    nrpt = 30
     nqtl = [100, 500]
     isdir("dat/tmp") || mkpath("dat/tmp")
     @load "dat/run/base.jld2" base
@@ -80,8 +79,8 @@ function t_2021_09_12()
                 df.nq = repeat([nq], ng8n)
                 df.method = repeat(["Edit"], ng8n)
                 append!(rst, df)
+                serialize("dat/rst/3w-cmp.ser", rst)
             end
-            serialize("dat/rst/3w-cmp.ser", rst)
         end
     end
 end
