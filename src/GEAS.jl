@@ -33,20 +33,6 @@ include("summarize.jl")
 include("workflow.jl")
 include("check-par.jl")
 
-
-# Test files
-# all functions in files below are in `src/tst`.
-# # These can be excluded in the release version.
-# # but can serve as examples.
-# 
-# include("tst/breeding.jl")
-# include("tst/evaluation.jl")
-# include("tst/dropping.jl")
-# include("tst/editing.jl")
-# include("tst/make-a-selection-sample.jl")
-# include("tst/breeding-summary.jl")
-# include("tst/distribution.jl")
-
 copyright()
 
 end # module

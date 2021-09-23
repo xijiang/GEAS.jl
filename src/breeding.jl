@@ -303,6 +303,7 @@ function breeding(ped, snp, base, qtl, par)
     end
 end
 
+#=
 """
     function simple_breeding(ped, snp, qtl, par, op)
 ---
@@ -334,3 +335,4 @@ function simple_breeding(ped, snp, base, qtl, par, op)
         end
     end
 end
+=#

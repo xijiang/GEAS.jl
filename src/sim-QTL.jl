@@ -88,6 +88,8 @@ That is, sample QTL for two traits that are all of the same positions.
 The effects of this set of QTL for the two traits,
 however, are correlated.
 For example, they can be reasonably negative correlated.
+
+An example of `d` is `MvNormal(zeros(2), [1 0; 0 1.])`.
 """
 function sim_pt_QTL(base, nqtl, d)
     @debug "Sample pleiotropic QTL for two trait" "QTL effects are define by `d`"
