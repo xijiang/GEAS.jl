@@ -25,3 +25,4 @@ Manifest.toml
 dat
 bin
 doc/.ipynb_checkpoints
+base.jld2

@@ -47,17 +47,25 @@ function gene_drop(df, r, psnp, osnp, qtl, h², ei=(lc=0, sr=1))
     end
     df[:, :tbv], df[:, :p7e] = phenotype(snp, qtl, h²)
 end
-#=
-gedit(snp.prd, prd[(g8n=ig,)], popfirst!(rkq), par.e19e)
-                            function gedit(snp, prd, l, sr)
-    @debug "editing" l
-    tov = l > 0 ? 1 : 0
-    fra, til = 2first(prd.id)-1, 2last(prd.id)
-    svc = view(snp, abs(l), fra:til)
-    br = rand(Bernoulli(sr), length(svc)) # succeeded editing
-    svc[br] .= tov
+
+"""
+    function toBinary(df, p17h)
+---
+convert the continuous phenotype (`:p7e`) in `df` to binary,
+according to percentage-of-death (`:p17h`).
+`:p17h` happened to be the quantile of the phenotypes.
+"""
+function toBinary(df, p17h)
+    m = quantile(df.p7e, p17h)
+    for i in 1:nrow(df)
+        if df.p7e[i] < m
+            df.p7e[i] = 0 # death
+        else
+            df.p7e[i] = 1 # live
+        end
+    end
 end
-=#
+
 """
     function create_storage(base, par)
 ---
@@ -151,13 +159,16 @@ function create_storage(base, par, qtl)
         dic = Dict(:prd => prd, :clg => clg)
         (; dic...)
     end
+    
+    prd = @view ped.prd[(ped.prd.g8n .== 0), :] # generation 0
+    prd[:, :tbv], prd[:, :p7e] = phenotype(base.hap, qtl[1], par.h²[1])
     prd = @view ped.prd[(ped.prd.g8n .== 1), :]
     clg = @view ped.clg[(ped.clg.g8n .== 1), :]
     gene_drop(prd, base.r, snp.prd, snp.prd, qtl[1], par.h²[1])
     gene_drop(clg, base.r, snp.prd, snp.clg, qtl[2], par.h²[2])
-    #calc_idx(ped, snp, prd, [], par)
+    par.b4y && toBinary(clg, par.p17h)
     prd[:, :val] = prd.p7e      # 1st generation on phenotype to save time
-    snp, ped
+    ped, snp
 end
 
 """
@@ -237,47 +248,6 @@ function assign_pama(ped, sires, dams, nsib)
     ped[:, :dam] = ma
 end
 
-#=
-"""
-    function breeding(base, par, qtl; edit = false, fixed = false)
----
-The breeding program.
-- `edit` is to instruct whether to edit top QTL or not.
-- `fixed` is to determine whether to trait the top QTL as fixed effect or not.
-
-Note:
-The counting of production DataFrame start from 0.
-Its `groupby` indices are `+`.
-"""
-function breeding(base, par, qtl; edit = false, fixed = false)
-    rkq = rank_QTL(base.hap, qtl[2]) # QTL rank in ↓ order
-    Q = fixed ? abs.(rkq[1:par.nK3n]) : Int[] # whether to emphaize known QTL or not
-    @debug rkq[1:10]                    # print top QTL at debug level
-    # prepare pedigree and storage
-    snp, ped = create_storage(base, par, qtl)
-    prd, clg = groupby(ped.prd, :g8n), groupby(ped.clg, :g8n) # shorthands
-    for ig in 2:par.nG8n-1
-        @info "Breeding generation $ig of $(par.nG8n)"
-        # - select breeders for next generation, and drop genes
-        sires, dams = select_nuclear(prd[ig], par.nSire, par.nDam)
-        
-        # Locus to be edited: 0 -> nothing, positive -> 1, negtive -> 0, abs -> loci
-        elc = edit ? popfirst!(rkq) : 0
-
-        # - assign parents of the next generation, and drop gene into it
-        assign_pama(prd[ig+1], sires, dams, par.nSib - par.nC7e)
-        gene_drop(prd[ig+1], base.r, snp.prd, snp.prd, qtl[1], par.h²[1],
-                  (lc=elc, sr=par.e19e))
-        
-        assign_pama(clg[ig], sires, dams, par.nC7e)
-        gene_drop(clg[ig], base.r, snp.prd, snp.clg, qtl[2], par.h²[2])
-
-        # - evaluation the previous generation, saving results in prd.val
-        calc_idx(ped, snp, prd[(g8n=ig-1,)], Q, par)
-    end
-    return ped.prd, snp.prd         # only needed for summary
-end
-=#
 
 """
     function breeding(ped, snp, qtl, r, par)
@@ -287,9 +257,11 @@ The `base`, which is small, is expanded to generation 1, with geno- and phenotyp
 This creates a more general/common base for later breeding with different methods.
 """
 function breeding(ped, snp, base, qtl, par)
-    rkq = rank_QTL(base.hap, qtl[2]) # QTL ranking in ↓ order
+    rkq = rank_QTL(base.hap, qtl[2]) # QTL for binary trait ranking in ↓ order
     Q = par.fix ? abs.(rkq[1:par.nK3n]) : Int[]
     prd, clg = groupby(ped.prd, :g8n), groupby(ped.clg, :g8n) # shorthands
+
+    # note, there are `nG8n+1` generations, including the base.
     for ig in 2:par.nG8n
         @info "Breeding generation $ig of $(par.nG8n)"
         sires, dams = select_nuclear(prd[ig], par.nSire, par.nDam)
@@ -299,11 +271,11 @@ function breeding(ped, snp, base, qtl, par)
                     (lc = elc, sr = par.e19e))
         assign_pama(clg[ig], sires, dams, par.nC7e)
         gene_drop(clg[ig], base.r, snp.prd, snp.clg, qtl[2], par.h²[2])
+        par.b4y && toBinary(clg[ig], par.p17h) # convert to binary phenotype
         calc_idx(ped, snp, prd[ig+1], Q, par)
     end
 end
 
-#=
 """
     function simple_breeding(ped, snp, qtl, par, op)
 ---
@@ -335,4 +307,3 @@ function simple_breeding(ped, snp, base, qtl, par, op)
         end
     end
 end
-=#

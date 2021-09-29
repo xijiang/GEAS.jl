@@ -9,3 +9,6 @@ These codes will be deleted in the final release, except:
 ### 2021-09-23
 Developing base moved from a3970x to 3900x.
 Saga is much more powerful with so many cores and memory.
+
+- Problems
+  - in function `create_storage`, `:tbv`, and `p7e` were not calculated in generation 0.

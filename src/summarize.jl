@@ -20,11 +20,25 @@ function compact_ped(ped)
     t
 end
 
+
 """
     function summarize(ped, snp, qtl)
 ---
+# Objective
 Summarize the results from function `breeding`.
 Return results in a DataFrame
+
+The following are calculated
+1. mean TBV of each trait
+2. genetic variance of each trait
+3. mean inbreeding coefficient of each generation based on A matrix
+
+# Arguments
+Here,
+- `ped` is the pedigree of the production/1st trait, where selection is
+also taking place.
+- `snp` is the SNP genotype matrix of the production trait.
+- `qtl` is the `QTL` vector for the binary (2nd) traits.
 
 # Inbreeding using A matrix
 - Recursive method is used, as here we have large full sibship, 
@@ -36,10 +50,10 @@ Return results in a DataFrame
 - mean TBV by generation
 """
 function summarize(ped, snp, qtl)
-    gp = groupby(ped, :g8n)
     bgt = alleles2gt(view(snp, qtl.pos, :))
     ped.clg = bgt'qtl.effect
-    rst = combine(gp[2:end], :tbv => mean => :mpbv,
+    rst = combine(groupby(ped, :g8n),
+                  :tbv => mean => :mpbv,
                   :tbv => var => :pvg,
                   :clg => mean => :mcbv,
                   :clg => var => :cvg)
@@ -51,10 +65,12 @@ function summarize(ped, snp, qtl)
         cpd[i, :ic] = kinship(mpd, cpd[i, :id], cpd[i,:id]) - 1
     end
     # mean inbreeding coefficients with A matrix
-    rst.mica = combine(groupby(cpd, :g8n),
-                      [:ic, :count] => ((x, y) -> x'y/sum(y)) => :mica).mica
+    mica = combine(groupby(cpd, :g8n),
+                   [:ic, :count] => ((x, y) -> x'y/sum(y)) => :mica).mica
+    rst.mica = [0; mica]
     rst
 end
+
 
 """
     function sumsum(df)
