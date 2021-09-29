@@ -106,11 +106,21 @@ end
 ---
 
 """
-function one_repeat(nqtl, g8n; dir = ".")
+function one_repeat(nqtl, g8n, jld; dir = ".")
     isdir(dir) || mkpath(dir)
     ntd = Threads.nthreads()
     BLAS.set_num_threads(ntd)   # use all specified threads (before REPL)
-    @load "base.jld2" base      # load population, which can be real, or simulated
+    @load jld base  # load population, which can be real, or simulated
     qtl = sim_QTL(base, nqtl, nqtl) # can change this to sim_pt_QTL()
+    example_simple_simulation(base, qtl, g8n, dir = dir)
+end
+
+
+function pt_repeat(nqtl, g8n, jld; dir = ".")
+    isdir(dir) || mkpath(dir)
+    ntd = Threads.nthreads()
+    BLAS.set_num_threads(ntd)
+    @load jld base
+    qtl = sim_pt_QTL(base, 100, MvNormal([0., 0.], [1 0; 0 1.]))
     example_simple_simulation(base, qtl, g8n, dir = dir)
 end
