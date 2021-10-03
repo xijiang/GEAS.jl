@@ -163,11 +163,11 @@ function create_storage(base, par, qtl)
     prd = @view ped.prd[(ped.prd.g8n .== 0), :] # generation 0
     prd[:, :tbv], prd[:, :p7e] = phenotype(base.hap, qtl[1], par.h²[1])
     prd = @view ped.prd[(ped.prd.g8n .== 1), :]
+    
     clg = @view ped.clg[(ped.clg.g8n .== 1), :]
     gene_drop(prd, base.r, snp.prd, snp.prd, qtl[1], par.h²[1])
     gene_drop(clg, base.r, snp.prd, snp.clg, qtl[2], par.h²[2])
     par.b4y && toBinary(clg, par.p17h)
-    prd[:, :val] = prd.p7e      # 1st generation on phenotype to save time
     ped, snp
 end
 
@@ -262,6 +262,8 @@ function breeding(ped, snp, base, qtl, par)
     prd, clg = groupby(ped.prd, :g8n), groupby(ped.clg, :g8n) # shorthands
 
     # note, there are `nG8n+1` generations, including the base.
+    @info "Evaluating generation 1"
+    calc_idx(ped, snp, prd[2], Q, par) # evaluation of generation one
     for ig in 2:par.nG8n
         @info "Breeding generation $ig of $(par.nG8n)"
         sires, dams = select_nuclear(prd[ig], par.nSire, par.nDam)
@@ -302,7 +304,7 @@ function simple_breeding(ped, snp, base, qtl, par, op)
                               par.h²[1], dd = par.dd)
 
             tid = size(gp)[2]
-            cgp = view(gp, :, tid-nrow(cur)+1:tid) # genotypes of current generation
+            cgp = view(gp, :, tid-nrow(cur)+1:tid) # genotypes of current g8n
             cur[:, :val] = cgp'sp
         end
     end
