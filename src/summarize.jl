@@ -250,3 +250,89 @@ function sum_improve(prd)
     b = combine(gp, :t2c => mean => :mbin)
     p, b
 end
+
+"""
+    function collect_repeats(jlds, fig)
+---
+Summarize results in file name vector `jlds`, each is of a repeat of some scenario.
+Results will be plotted in `fig`.
+
+I stored the `DataFrame` results in `JLD2` format so that they can be read
+elsewhere. To create the vector `jlds`:
+
+```julia
+dir = the_path_contains_the_jld2_files
+files = readdir(dir)
+jlds = dir .* files[occursin.("jlds", files)]
+```
+"""
+function collect_repeats(jlds, fig)
+    df = DataFrame()
+    for file in jlds
+        @load file rst
+        append!(df, rst)
+    end
+    ng8n = maximum(df.g8n)
+    rst = DataFrame()
+    for gp in groupby(df, :method)
+        for gn in groupby(gp, :g8n)
+            tmp = combine(gn,
+                          :mpbv => mean => :mpbv,
+                          :pvg  => mean => :pvg,
+                          :mcbv => mean => :mcbv,
+                          :cvg  => mean => :cvg,
+                          :mica => mean => :mica)
+            tmp.method .= gp.method[1]
+            tmp.g8n .= gn.g8n[1]
+            append!(rst, tmp)
+        end
+    end
+    bymethod = groupby(rst, :method)
+    scalefontsizes(0.65)
+    p1 = plot(bymethod[1].g8n, bymethod[1].mpbv,
+              ylabel = "Mean TBV, production",
+              legend = :topleft,
+              label = bymethod[1].method[1],
+              dpi = 300,
+              xticks = 0:ng8n);
+    plot!(p1, bymethod[2].g8n, bymethod[2].mpbv, label = bymethod[2].method[1]);
+    plot!(p1, bymethod[3].g8n, bymethod[3].mpbv, label = bymethod[3].method[1]);
+
+    p2 = plot(bymethod[1].g8n, bymethod[1].mcbv,
+              ylabel = "Mean TBV, challenge",
+              legend = :topleft,
+              label = bymethod[1].method[1],
+              dpi = 300,
+              xticks = 0:ng8n);
+    plot!(p2, bymethod[2].g8n, bymethod[2].mcbv, label = bymethod[2].method[1]);
+    plot!(p2, bymethod[3].g8n, bymethod[3].mcbv, label = bymethod[3].method[1]);
+
+    p3 = plot(bymethod[1].g8n, bymethod[1].pvg,
+              ylabel = "Var(TBV), production",
+              legend = :topright,
+              label = bymethod[1].method[1],
+              xticks = 0:ng8n);
+    plot!(p3, bymethod[2].g8n, bymethod[2].pvg, label = bymethod[2].method[1]);
+    plot!(p3, bymethod[3].g8n, bymethod[3].pvg, label = bymethod[3].method[1]);
+
+    p4 = plot(bymethod[1].g8n, bymethod[1].cvg,
+              xlabel = "Generation",
+              ylabel = "Var(TBV), challenge",
+              legend = :topright,
+              label = bymethod[1].method[1],
+              xticks = 0:ng8n);
+    plot!(p4, bymethod[2].g8n, bymethod[2].cvg, label = bymethod[2].method[1]);
+    plot!(p4, bymethod[3].g8n, bymethod[3].cvg, label = bymethod[3].method[1]);
+
+    p5 = plot(bymethod[1].g8n, bymethod[1].mica,
+              ylabel = "Mean inbreeding, pedigree",
+              legend = :topleft,
+              label = bymethod[1].method[1],
+              xticks = 0:ng8n);
+    plot!(p5, bymethod[2].g8n, bymethod[2].mica, label = bymethod[2].method[1]);
+    plot!(p5, bymethod[3].g8n, bymethod[3].mica, label = bymethod[3].method[1]);
+
+    plot(p1, p3, p5, p2, p4);
+    savefig(fig)
+    scalefontsizes()            # restore the sizes, or other plots are affected
+end

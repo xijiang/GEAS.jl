@@ -39,7 +39,8 @@ function gpar(; binary = false, edit = false, emph = false, cv = 0., g8n = 3)
         :dd   => 0.01,  # A small value to be added to diagonals
         :edit => edit,  # whether to edit (the biggest) known QTL
         :fix  => emph, # if to fit (the largest) known QTL as fixed effects
-        :b4y  => binary # for debug only, remove the threshold of binary trait
+        :b4y  => binary, # for debug only, remove the threshold of binary trait
+        :u38y => false  # "use genotypes of current generation only" :40char
     )
     (; par...)
 end
@@ -136,77 +137,4 @@ function pt_repeat(nqtl, g8n, jld; dir = ".")
     @load jld base
     qtl = sim_pt_QTL(base, 100, MvNormal([0., 0.], [1 0; 0 1.]))
     example_simple_simulation(base, qtl, g8n, dir = dir)
-end
-
-
-function collect_repeats(; dir = ".")
-    df = DataFrame()
-    for file in readdir(dir)
-        if file[1:3] == "jl_"
-            @load "$dir/$file" rst
-            append!(df, rst)
-        end
-    end
-    rst = DataFrame()
-    for gp in groupby(df, :method)
-        for gn in groupby(gp, :g8n)
-            tmp = combine(gn,
-                          :mpbv => mean => :mpbv,
-                          :pvg  => mean => :pvg,
-                          :mcbv => mean => :mcbv,
-                          :cvg  => mean => :cvg,
-                          :mica => mean => :mica)
-            tmp.method .= gp.method[1]
-            tmp.g8n .= gn.g8n[1]
-            append!(rst, tmp)
-        end
-    end
-    bymethod = groupby(rst, :method)
-    p1 = plot(bymethod[1].g8n, bymethod[1].mpbv,
-         xlabel = "Generation",
-         ylabel = "Mean TBV, production",
-         legend = :topleft,
-         label = bymethod[1].method[1],
-         xticks = 0:11);
-    plot!(p1, bymethod[2].g8n, bymethod[2].mpbv, label = bymethod[2].method[1]);
-    plot!(p1, bymethod[3].g8n, bymethod[3].mpbv, label = bymethod[3].method[1]);
-
-    p2 = plot(bymethod[1].g8n, bymethod[1].mcbv,
-         xlabel = "Generation",
-         ylabel = "Mean TBV, challenge (cont.)",
-         legend = :topleft,
-         label = bymethod[1].method[1],
-         xticks = 0:11);
-    plot!(p2, bymethod[2].g8n, bymethod[2].mcbv, label = bymethod[2].method[1]);
-    plot!(p2, bymethod[3].g8n, bymethod[3].mcbv, label = bymethod[3].method[1]);
-
-    p3 = plot(bymethod[1].g8n, bymethod[1].pvg,
-         xlabel = "Generation",
-         ylabel = "Var(TBV), production",
-         legend = :topright,
-         label = bymethod[1].method[1],
-         xticks = 0:11);
-    plot!(p3, bymethod[2].g8n, bymethod[2].pvg, label = bymethod[2].method[1]);
-    plot!(p3, bymethod[3].g8n, bymethod[3].pvg, label = bymethod[3].method[1]);
-
-    p4 = plot(bymethod[1].g8n, bymethod[1].cvg,
-         xlabel = "Generation",
-         ylabel = "Var(TBV), challenge (cont.)",
-         legend = :topright,
-         label = bymethod[1].method[1],
-         xticks = 0:11);
-    plot!(p4, bymethod[2].g8n, bymethod[2].cvg, label = bymethod[2].method[1]);
-    plot!(p4, bymethod[3].g8n, bymethod[3].cvg, label = bymethod[3].method[1]);
-
-    p5 = plot(bymethod[1].g8n, bymethod[1].mica,
-              xlabel = "Generation",
-              ylabel = "Mean inbreeding, production",
-              legend = :topleft,
-              label = bymethod[1].method[1],
-              xticks = 0:11);
-    plot!(p5, bymethod[2].g8n, bymethod[2].mica, label = bymethod[2].method[1]);
-    plot!(p5, bymethod[3].g8n, bymethod[3].mica, label = bymethod[3].method[1]);
-
-    plot(p1, p3, p5, p2, p4);
-    savefig("$dir/rst.pdf")
 end
