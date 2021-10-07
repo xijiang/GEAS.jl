@@ -3,6 +3,7 @@ using JLD2, DataFrames, LinearAlgebra, Distributions, Serialization, StatsPlots
 
 # These functions from `GEAS` are to be used in this simulation
 import GEAS:breeding, sim_QTL, summarize, create_storage, sim_pt_QTL
+import GEAS:rank_QTL, calc_idx
 
 """
     function gpar(; edit = false, emph = false, cv = 0., g8n = 3)
@@ -19,7 +20,13 @@ To avoid too long tuple names, I used numbers as shortcuts, e.g.,
 `MvNormal(zeros(2), [1 cc; cc 1])`.  `cv` is the covariance of the QTL
 effects for traits.
 """
-function gpar(; binary = false, edit = false, emph = false, cv = 0., g8n = 3)
+function gpar(;
+              binary = false,   # whether to convert challenge trait binary
+              edit   = false,
+              emph   = false,   # if to emphasize known QTL
+              cv     = 0.,      # for pleiotropic trait
+              g8n    = 3,       # number of generation to simulate
+              u38y   = false)
     par = Dict(
         :nSire=> 100,
         :nDam => 200,   # male:female = 1:2
@@ -40,7 +47,7 @@ function gpar(; binary = false, edit = false, emph = false, cv = 0., g8n = 3)
         :edit => edit,  # whether to edit (the biggest) known QTL
         :fix  => emph, # if to fit (the largest) known QTL as fixed effects
         :b4y  => binary, # for debug only, remove the threshold of binary trait
-        :u38y => false  # "use genotypes of current generation only" :40char
+        :u38y => u38y # "use genotypes of current generation only" :40char
     )
     (; par...)
 end
@@ -70,6 +77,7 @@ You'd better set this number ≤ your available physical CPU cores.
 function example_simple_simulation(base, qtl, g8n; dir = ".")
     rst = DataFrame()
     
+    # par = gpar(g8n = g8n, u38y = true)
     par = gpar(g8n = g8n)
     @info "prepare common base + generation 1 of $(par.nG8n)"
     # by default Lapace below.
@@ -110,6 +118,13 @@ This function simulate two sets of QTL of Laplace distribution for two traits.
 The `example_simple_simulation` will do breeding with `SNP-BLUP`, `Fixed`
 and `Edit` methods.
 Results (`*.jld2`) and intermediate data (`*ser`) are stored in `dir`.
+
+You may find this `example` file by:
+```julia
+dir = pathof(GEAS)
+til = findlast("/src", dir)[1]
+example = joinpath(tmp[1:til], "examples/sample-one-repeat.jl")
+```
 """
 function one_repeat(nqtl, g8n, jld; dir = ".")
     isdir(dir) || mkpath(dir)
@@ -137,4 +152,23 @@ function pt_repeat(nqtl, g8n, jld; dir = ".")
     @load jld base
     qtl = sim_pt_QTL(base, 100, MvNormal([0., 0.], [1 0; 0 1.]))
     example_simple_simulation(base, qtl, g8n, dir = dir)
+end
+
+function test_codes(u38y = false)
+    ntd = Threads.nthreads()
+    BLAS.set_num_threads(ntd)   # use all specified threads (before REPL)
+    @load "dat/run/base.jld2" base
+    qtl = sim_QTL(base, 100, 100) # can change this to sim_pt_QTL()
+    par = gpar(g8n = 3, u38y = u38y)
+    @info "prepare common base + generation 1 of $(par.nG8n)"
+    # by default Lapace below.
+    ped, snp = create_storage(base, par, qtl)
+
+    rkq = rank_QTL(base.hap, qtl[2]) # QTL for binary trait ranking in ↓ order
+    Q = par.fix ? abs.(rkq[1:par.nK3n]) : Int[]
+    prd, clg = groupby(ped.prd, :g8n), groupby(ped.clg, :g8n) # shorthands
+
+    # note, there are `nG8n+1` generations, including the base.
+    @info "Evaluating generation 1"
+    calc_idx(ped, snp, prd[2], Q, par) # evaluation of generation one
 end

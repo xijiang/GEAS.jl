@@ -263,7 +263,7 @@ elsewhere. To create the vector `jlds`:
 ```julia
 dir = the_path_contains_the_jld2_files
 files = readdir(dir)
-jlds = dir .* files[occursin.("jlds", files)]
+jlds = joinpath.(dir, files[occursin.("jlds", files)])
 ```
 """
 function collect_repeats(jlds, fig)

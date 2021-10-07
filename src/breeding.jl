@@ -221,20 +221,40 @@ Store the results in `cur[:, :val]`.
 - If `lqtl` is not empty, then its specified loci are fixed as fixed effects
 """
 function calc_idx(ped, snp, cur, Q, par)
-    fra = findlast(x -> x == 0, ped.prd.g8n)
+    # About the production trait
     til = last(cur).id
+    fra = par.u38y ?
+        cur.id[1] - 1 :
+        findlast(x -> x == 0, ped.prd.g8n)
     gp = alleles2gt(view(snp.prd, :, 2fra+1:2til))
-    mp, sp = snp_blup(gp, ped.prd[:, :p7e][fra+1:til], par.h²[1], dd = par.dd)
+    mp, sp = snp_blup(gp,
+                      ped.prd[:, :p7e][fra+1:til],
+                      par.h²[1],
+                      dd = par.dd)
 
+    # About the binary trait
     til = findlast(x -> x == first(cur).g8n, ped.clg.g8n)
-    gc = alleles2gt(view(snp.clg, :, 1:2til))
-    F = ped.clg.g8n[1:til]
-    mc, sc = snp_blup(gc, ped.clg[:,:p7e][1:til], par.h²[2], Q=Q, F=F, dd=par.dd)
+    if par.u38y
+        fra = findfirst(x -> x == first(cur).g8n, ped.clg.g8n)
+        F = []                  # no need to fit generation as a fixed effect
+    else
+        fra = 1
+        F = ped.clg.g8n[1:til]
+    end
+    gc = alleles2gt(view(snp.clg, :, 2fra-1:2til))
+    mc, sc = snp_blup(gc,
+                      ped.clg[:, :p7e][fra:til],
+                      par.h²[2],
+                      Q = Q,    # whether to emphsize known QTL
+                      F = F,    # whether have more than 1 generations.
+                      dd = par.dd)
 
+    # Assign `:val` for selection
     tid = size(gp)[2]
     cgp = view(gp, :, tid-nrow(cur)+1:tid) # genotypes of current generation
     cur[:, :val] = cgp'sp + cgp'sc .* par.w4t
 end
+
 
 """
     function assign_pama(ped, sires, dams, nsib)
