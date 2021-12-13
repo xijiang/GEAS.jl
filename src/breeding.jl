@@ -329,3 +329,81 @@ function simple_breeding(ped, snp, base, qtl, par, op)
         end
     end
 end
+
+"""
+    function which_to_edit(snp, qtl, n)
+---
+Check which SNP in `snp` are segregating.
+Return the biggest `n` segregating QTL according to `qtl`.
+Ranking is on subsitution effects.
+"""
+function which_to_edit(snp, qtl, n)
+    @info "Under construction"
+end
+
+"""
+    function qtl_breeding(base, qtl)
+---
+## Intrduction
+This function is to duplicate simulations ofJenko(2015).
+It studied on only one trait.
+Only QTL were used for SNP genotypes, as if we know all the QTL.
+The breeding is then only on these QTL.
+No BLUP evaluation was evolved.
+
+## Notes
+- To use the `DataFrame` structure, a dummy column `:val` is copy of `:tbv`.
+- Summarize `:tbv` in the pedigree dataframe for the genetic improvements.
+- n_male ≤ n_females always
+- n-females should be even
+- `eSires` is a vector indicating which sire to edit
+"""
+function qtl_breeding(base, par, qtl; eSires=[])
+    par.nSire > par.nDam && error("nSire > nDam")
+    par.nDam ÷ 2 * 2 == par.nDam || error("nDam not even")
+    haskey(par, :nEdit) && println("Debugging")
+    
+    snp = begin                 # SNP/QTL of alternative generations
+        a = copy(base.hap)
+        b = copy(base.hap)
+        (a, b)                  # no matter who is first
+    end
+    cg = 1              # the current generation. 3 - cg → alternative
+    ped = begin
+        nid = par.nDam * par.nSib # Nid per generation
+        tid = par.nG8n * nid      # Nid all together
+        g8n = repeat(1:par.nG8n, inner = nid)
+        id  = repeat(1:nid, outer = par.nG8n)
+        sex = zeros(Int, tid) # needs to be half male/female in every generation
+        mdam = max(par.nDam, nid ÷ 2) # to garantee to have enough dams.
+        for i in 0:par.nG8n-1
+            sex[i*nid+1:i*nid+nid] = shuffle([zeros(Int, mdam); ones(Int, nid - mdam)])
+        end
+        tmp = DataFrame(g8n = g8n,
+                        id = id,
+                        sex = sex,
+                        sir = zeros(Int, tid),
+                        dam = zeros(Int, tid),
+                        tbv = zeros(tid),
+                        p7e = zeros(tid),
+                        val = zeros(tid) # a duplicate of tbv to use codes before
+                        )
+        groupby(tmp, :g8n)
+    end
+    # TBV of the first generation
+    ped[1].tbv[:] = begin
+        gt = alleles2gt(snp[1])
+        gt'qtl.effect
+    end
+    print("Breeding of generation: ")
+    for i in 2:par.nG8n
+        print(" $i")
+        ped[i-1].val[:] = ped[i-1].tbv
+        sires, dams = select_nuclear(ped[i-1], par.nSire, par.nDam)
+        assign_pama(ped[i], sires, dams, par.nSib)
+        gene_drop(ped[i], base.r, snp[cg], snp[3-cg], qtl, par.h²)
+        cg = 3 - cg             # change to the alternative generation
+    end
+    println()
+    ped, snp[cg]                # for base of the next simulation
+end

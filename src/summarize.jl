@@ -252,26 +252,16 @@ function sum_improve(prd)
 end
 
 """
-    function collect_repeats(jlds, fig)
+    function plot_results(df, fig)
 ---
-Summarize results in file name vector `jlds`, each is of a repeat of some scenario.
+Summarize results in `DataFrame` `df`.
 Results will be plotted in `fig`.
-
-I stored the `DataFrame` results in `JLD2` format so that they can be read
-elsewhere. To create the vector `jlds`:
-
-```julia
-dir = the_path_contains_the_jld2_files
-files = readdir(dir)
-jlds = joinpath.(dir, files[occursin.("jlds", files)])
+Before I used `JLD2` for data storage.
+It was not stable.
+So I turned to `CSV`, which needs to be read into a DataFrame `df`.
 ```
 """
-function collect_repeats(jlds, fig)
-    df = DataFrame()
-    for file in jlds
-        @load file rst
-        append!(df, rst)
-    end
+function plot_results(df, fig)
     ng8n = maximum(df.g8n)
     rst = DataFrame()
     for gp in groupby(df, :method)
@@ -336,3 +326,62 @@ function collect_repeats(jlds, fig)
     savefig(fig)
     scalefontsizes()            # restore the sizes, or other plots are affected
 end
+
+"""
+    function table_results(df)
+---
+This function will table the simulation results.
+Return a DataFrame only.
+"""
+function table_results(df)
+    ng8n = maximum(df.g8n)
+    rst = DataFrame()
+    for gp in groupby(df, :method)
+        for gn in groupby(gp, :g8n)
+            tmp = combine(gn,
+                          :mpbv => mean => :mpbv,
+                          :pvg  => mean => :pvg,
+                          :mcbv => mean => :mcbv,
+                          :cvg  => mean => :cvg,
+                          :mica => mean => :mica)
+            tmp.method .= gp.method[1]
+            tmp.g8n .= gn.g8n[1]
+            append!(rst, tmp)
+        end
+    end
+    return rst
+end
+
+"""
+    function table_binary(df, scenario)
+---
+Select mean breeding values, and its variance, plus the method used
+from `df`.  This function transpose these 3 columns
+"""
+function table_binary(df)
+    out = DataFrame()
+    for d in groupby(df, :method)
+        dic = Dict("x1" => "g_0")
+        t = DataFrame(Matrix(select(d, :mcbv, :cvg))', :auto)
+        for i in 2:ncol(t)
+            dic["x$i"] = "g_$(i-1)"
+        end
+        rename!(t, dic)
+        t.stats = ["EBV", "Var"]
+        t.method = repeat([d.method[1]], 2)
+        append!(out, select(t, :method, :stats, r"g"))
+    end
+    out
+end
+
+function table_scenario(df)
+    out = DataFrame()
+    for r in groupby(df, :scenario)
+        t = table_results(r)
+        b = table_binary(t)
+        b.scenario = repeat([r.scenario[1]], nrow(b))
+        append!(out, select(b, :scenario, :method, :stats, r"g"))
+    end
+    out
+end
+

@@ -14,6 +14,7 @@ function grm(g; nz=0.)
     Z = g .- twop
     G = Z'Z .* r2pq
     !iszero(nz) && (G += nz .* I)
+    G
 end
 
 """

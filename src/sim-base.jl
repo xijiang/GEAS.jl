@@ -40,74 +40,92 @@ function sample_macs(frq, maf, n)
 end
 
 """
-    function sim_base(h, c, l, s; t = 1e-5, r = 1e-5, maf=0.05)
+    function MaCS(args, nchr; dir = ".")
 ---
-Simulate a base population with [`macs`](https://github.com/gchen98/macs).
-This function will simulate a population of 
-- `h` haplotypes, or `h/2` individuals
-- `c` chromosomes, each individual
-- each chromosome of `l` base pairs, 
-- each chromosome of `s` number of SNP
-- loci of maf<0.05, by default, are excluded
-
-`s` = min(s, number of simulated SNP fitered with `maf`,
-which will be sampled from the simulated results.
+## Description
+This function simulate `nchr` chromosomes with `MaCS`.
 
 ## Example
 ```julia
-GEAS.sim_base(1200, 29, 1e8, 2000)
+par = GEAS.macs_args(100)
+GEAS.MaCS(par.cattle, 29, dir = "where-you-want-to-store-the-results"
 ```
-will simulate 600 ID.  Each ID has 29 chromosome.
-Each chromsome is of 1e8 base pairs.
-Returns 
+Above will simulate `29` chromosomes. The results are `dir/chr.{1..nchr}`, and
+`dir/info.{1..chr}`.
+
+## Note
+- Each chromosome might take about 1G disk space.
+- The function runs the chromosome simulation in parallel.
+- The number of threads is defined by `JULIA_NUM_THREADS` of your bash environment.
 """
-function sim_base(h, c, l, s; t = 1e-5, r = 1e-5, maf=0.05)
-    @info "Simulate a base population with `macs`"
-    cmd = `$macs $h $l -t $t -r $r`
-    sim = joinpath(dat_dir, "run/sim")
-    isdir(sim) || mkpath(sim)
-    print("Simulate chromosome:")
-    Threads.@threads for ic in 1:c
-        print(" $ic")
+function MaCS(args, nchr; dir = ".")
+    isdir(dir) || mkpath(dir)
+    seed = rand(Int, nchr)
+
+    @info "Simulate a base population with `macs`" 
+    Threads.@threads for chr in 1:nchr
+        cmd = `$macs $(split(args)) -s $(seed[chr])`
         run(pipeline(cmd,
-                     stderr = devnull,
-                     stdout = "$sim/$ic.txt"))
-    end
-    println()
-    nlc = c * s
-    # base is not big, BitArray can be slow.
-    # the real base is also of Int8. so
-    gt  = Array{Int8, 2}(undef, nlc, h)
-    # other simulation results
-    chr = Array{Int, 1}(undef, nlc)
-    bp  = Array{Int, 1}(undef, nlc)
-    r   = Array{Float64, 1}(undef, nlc)
-    from = 1
-    totl = 0                    # in case not enough SNP simulated
-    print("Collect chromosome:")
-    for ic in 1:c
-        print(" $ic")
-        # chromsome genotype (cg), physical positions (cp), frequences (cf)
-        cg, cp, cf = read_macs("$sim/$ic.txt") # c: current chromosome
-        ix = sample_macs(cf, maf, s)
-        cs = length(ix)         # check if enough loci sampled
-        cs < s && @warn "Less than expected SNP sampled on chromosome $ic"
-        totl += cs
-        gt[from:totl, :] = cg[ix, :] # add GT block
-        chr[from:totl] = repeat([ic], cs)
-        bp[from:totl] = Int.(floor.(cp[ix] .* l))
-        from += cs
-    end
-    println()
-    begin                       # create the dictionary and return
-        pos = [chr[1:totl] bp[1:totl]]
-        r   = haldane(pos)
-        Dict(:pos => pos,
-             :r => r,
-             :hap => Bool.(gt[1:totl, :]))
+                     stderr = joinpath(dir, "info.$chr"),
+                     stdout = joinpath(dir, "chr.$chr"))
+            )
     end
 end
 
+"""
+    function macs_2_base(nchr, nsnp; maf = .05, dir = ".", bppm = 1e8)
+---
+## Description
+Sample SNP of `maf` from simulated `nchr` MaCS results in `dir`.
+Each chromosome has `nsnp` SNP.
+The extracted results are written in `base` format required by `GEAS`.
+
+## Arguments
+- `nchr`: Number of chromosome to be read.
+  - Chromsomes were created from function `MaCS`
+  - Error if `dir/chr.{1..nchr}` not exists.
+- `nsnp`: Number of SNP to be sampled on each chromosome
+  - An error is thrown When there aren't enough SNP
+- `bppm`: base pairs per morgan.
+"""
+function macs_2_base(nchr, nsnp; maf = .05, dir = ".", bppm = 1e8)
+    nhp = begin                 # Determine number of ID simulated
+        file = joinpath(dir, "chr.1")
+        isfile(file) || error("File $dir/chr.1 not exists")
+        tmp = 0
+        for line in eachline(file)
+            if line[1:4] == "SITE"
+                tmp = length(split(line)[5])
+                break
+            end
+        end
+        tmp
+    end
+    nlc = nchr * nsnp
+    
+    # Create storage for base
+    base = (; Dict(
+        :hap => BitArray(undef, nlc, nhp),
+        :pos => zeros(Int, nlc, 2),
+        :r => zeros(nlc))...)
+
+    print("Dealing with chromsome:")
+    for ic in 1:nchr            # Input the genotypes
+        print(" $ic")
+        file = joinpath(dir, "chr.$ic")
+        isfile(file) || error("File $file not exist")
+        gt, ps, fq = read_macs(file)
+        ix = sample_macs(fq, maf, nsnp)
+        length(ix) < nsnp && error("Not enough SNP sampled")
+        fra, til = (ic - 1) * nsnp + 1, ic * nsnp
+        base.hap[fra:til, :] = gt[ix, shuffle(1:nhp)]
+        base.pos[fra:til, 1] .= ic
+        base.pos[fra:til, 2] = Int.(floor.(ps[ix] .* bppm))
+    end
+    base.r[:] = haldane(base.pos, M = bppm)
+    println()
+    base
+end
 
 """
     function qmsim()
