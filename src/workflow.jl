@@ -25,6 +25,7 @@ It can also serve as a template pipeline.
 function workflow(; debug = true)
     copyright()
     @info "Workflows can be found in `tst` directory"
+    @info "test"
     # if debug
     #     @info join(["Debug mode",
     #                 "      ==========",

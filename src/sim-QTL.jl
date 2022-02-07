@@ -16,7 +16,7 @@ Note:
 - Randomly flip the sign of the effects may be a solution.
 """
 function sim_QTL(base, nqtl...; d = Laplace())
-    @debug "Sample QTL locations and effects" "Wit the QTL effects, var(BV) ≈ 1"
+    @debug "Sample QTL locations and effects" "With the QTL effects, var(BV) ≈ 1"
     pos = base.pos
     GT  = base.hap              # short hands
     tsnp = size(pos)[1]

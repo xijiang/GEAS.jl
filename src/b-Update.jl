@@ -9,8 +9,7 @@ function copyright()
     msg = ["",
            "GEAS: Genome Editing Assisted Selection",
            "===========",
-           "Developed by Xijiang Yu @NMBU",
-           "Copyright © $year",
+           "Copyright © Xijiang Yu, $year",
            "MIT license"]
     @info join(lpad.(msg, w), "\n")
 end

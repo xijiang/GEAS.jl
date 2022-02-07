@@ -130,6 +130,7 @@ function one_repeat(nqtl, g8n, jld; dir = ".")
     isdir(dir) || mkpath(dir)
     ntd = Threads.nthreads()
     BLAS.set_num_threads(ntd)   # use all specified threads (before REPL)
+    # Note `twop` was added to base.jld2, Jan, 2022
     @load jld base  # load population, which can be real, or simulated
     qtl = sim_QTL(base, nqtl, nqtl) # can change this to sim_pt_QTL()
     example_simple_simulation(base, qtl, g8n, dir = dir)

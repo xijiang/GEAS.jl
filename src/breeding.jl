@@ -212,15 +212,16 @@ function select_nuclear(df, nSire, nDam)
 end
 
 """
-    function calc_idx(ped, snp, cur, lqtl, par)
+    function calc_idx(ped, snp, cur, lqtl, par, twop)
 ---
 Calculate selection index SNP and phenotype information up to current generation.
 Store the results in `cur[:, :val]`.
 
 - Generations are treated as a fixed effect in the challenge group.
 - If `lqtl` is not empty, then its specified loci are fixed as fixed effects
+- `twop` are those in the first generation, which were stored in `base`.
 """
-function calc_idx(ped, snp, cur, Q, par)
+function calc_idx(ped, snp, cur, Q, par, twop)
     # About the production trait
     til = last(cur).id
     fra = par.u38y ?
@@ -230,6 +231,7 @@ function calc_idx(ped, snp, cur, Q, par)
     mp, sp = snp_blup(gp,
                       ped.prd[:, :p7e][fra+1:til],
                       par.h²[1],
+                      twop,
                       dd = par.dd)
 
     # About the binary trait
@@ -280,10 +282,9 @@ function breeding(ped, snp, base, qtl, par)
     rkq = rank_QTL(base.hap, qtl[2]) # QTL for binary trait ranking in ↓ order
     Q = par.fix ? abs.(rkq[1:par.nK3n]) : Int[]
     prd, clg = groupby(ped.prd, :g8n), groupby(ped.clg, :g8n) # shorthands
-
     # note, there are `nG8n+1` generations, including the base.
     @info "Evaluating generation 1"
-    calc_idx(ped, snp, prd[2], Q, par) # evaluation of generation one
+    calc_idx(ped, snp, prd[2], Q, par, snp.twop) # evaluation of generation one
     for ig in 2:par.nG8n
         @info "Breeding generation $ig of $(par.nG8n)"
         sires, dams = select_nuclear(prd[ig], par.nSire, par.nDam)
@@ -294,7 +295,7 @@ function breeding(ped, snp, base, qtl, par)
         assign_pama(clg[ig], sires, dams, par.nC7e)
         gene_drop(clg[ig], base.r, snp.prd, snp.clg, qtl[2], par.h²[2])
         par.b4y && toBinary(clg[ig], par.p17h) # convert to binary phenotype
-        calc_idx(ped, snp, prd[ig+1], Q, par)
+        calc_idx(ped, snp, prd[ig+1], Q, par, snp.twop)
     end
 end
 
@@ -302,7 +303,6 @@ end
     function simple_breeding(ped, snp, qtl, par, op)
 ---
 To select on `TBV`, `phenotypes`, or `EBV` on the production trait.
-
 """
 function simple_breeding(ped, snp, base, qtl, par, op)
     prd, clg = groupby(ped.prd, :g8n), groupby(ped.clg, :g8n) # shorthands
@@ -321,7 +321,7 @@ function simple_breeding(ped, snp, base, qtl, par, op)
             til = last(cur).id
             gp = alleles2gt(view(snp.prd, :, 2fra+1:2til))
             mp, sp = snp_blup(gp, ped.prd[:, :p7e][fra+1:til],
-                              par.h²[1], dd = par.dd)
+                              par.h²[1], base.twop, dd = par.dd)
 
             tid = size(gp)[2]
             cgp = view(gp, :, tid-nrow(cur)+1:tid) # genotypes of current g8n

@@ -81,24 +81,17 @@ function fxmat(F)
 end
 
 """
-    function snp_blup(g, p, h²; Q = [], F = [], dd=0)
+    function snp_blup(g, p, h², twop; Q = [], F = [], dd=0)
 ---
 The plain SNP-BLUP procedure.
 Returns E(population) and  a vector of SNP effects.
 
 **Warning**: I use Float32 to save memory.
 This will be changed if to run on a bigger machine.
-
-`function snp_blup(g, p; σₐ² = 1, σₑ² = 1, Q = [], F = [])`
-changed to
-`function snp_blup(g, p, h²; Q = [], F = [])`, on 2021-Apr.-1
 """
-function snp_blup(g, p, h²; Q = [], F = [], dd=0)
-    #BLAS.set_num_threads(24)
+function snp_blup(g, p, h², twop; Q = [], F = [], dd=0)
+    # twop comes from the base population, which holds the h^2 info
     nlc, nid = size(g)
-    @debug "SNP BLUP: evaluating SNP effects" nlc nid
-
-    # λ = (σₑ²/σₐ²) * nlc  # changed to below
     λ = (1. - h²)/h² * nlc + dd
     X = begin           # incident matrix for fixed effects, include μ
         if length(F) > 0
@@ -107,6 +100,7 @@ function snp_blup(g, p, h²; Q = [], F = [], dd=0)
             ones(Int16, nid, 1)
         end
     end
+    sx = sum(X, dims=1)
     nf = size(X)[2]
     sl = nlc + nf               # size of lhs
     lhs = begin
@@ -115,24 +109,25 @@ function snp_blup(g, p, h²; Q = [], F = [], dd=0)
         # upper left block
         ul = view(tmp, 1:nf, 1:nf)
         matmul!(ul, X', X)
+        @debug "ul" ul
 
         # lower left block
         ll = view(tmp, nf+1:sl, 1:nf)
         matmul!(ll, g, X)
+        @debug "ll" ll
 
         # upper right block
-        for i in 1:nf
-            for j in nf+1:sl
-                tmp[i, j] = tmp[j, i]
-            end
-        end
+        tmp[nf+1:sl, 1:nf] -= twop .* sx
+        tmp[1:nf, nf+1:sl] = tmp[nf+1:sl, 1:nf]'
 
         # lower right block
         lr = view(tmp, nf+1:sl, nf+1:sl)
         matmul!(lr, g, g')
+        lr -= nid .* (twop * twop')
         for i in nf+1:sl
             tmp[i, i] += λ
         end
+        @debug "lr" lr
 
         # if some QTL as fixed effects
         if length(Q) > 0
@@ -143,14 +138,17 @@ function snp_blup(g, p, h²; Q = [], F = [], dd=0)
         end
         tmp
     end
+    @debug "lhs" lhs
+    return
     rhs = begin
         tmp = zeros(Float32, sl)
         y = reshape(p, length(p), :)
         tmp[1:nf]     = matmul(X', y)
         tmp[nf+1:end] = matmul(g, y)
+        tmp[nf+1:end] -= twop .* sum(y)
         vec(tmp)
     end
-
+    return
     # Solving
     # ToDo: may try `preconditioned conjugate gradient` later
     LAPACK.posv!('L', lhs, rhs)
