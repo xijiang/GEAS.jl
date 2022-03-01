@@ -18,6 +18,28 @@ function alleles2gt(snp)
 end
 
 """
+    function hap2gt(hap; GBLUP = false)
+Note `hap` here are ID majored.  The two haplotypes of one ID are in two columns.
+This is for ease of gene-dropping.
+"""
+function hap2gt(hap; GBLUP = false)
+    nlc, nid = size(hap)
+    nid ÷= 2
+    if GBLUP
+        gt = Matrix{Int8}(undef, nlc, nid)
+        for i in 1:nid
+            gt[:, i] = hap[:, 2i-1] + hap[:, 2i]
+        end
+    else
+        gt = Matrix{Int8}(undef, nid, nlc)
+        for i in 1:nid
+            gt[i, :] = hap[:, 2i-1] + hap[:, 2i]
+        end
+    end
+    gt
+end
+
+"""
 Given SNP genotypes `snp`, and QTL loci and effects in `qtl`, this function return
 true breeding values of each individual.
 """

@@ -32,8 +32,6 @@ include("summarize.jl")
 include("workflow.jl")
 include("check-par.jl")
 include("utils.jl")
-include("api.jl")
-include("bayes-alphabet.jl")
 
 copyright()
 

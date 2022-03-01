@@ -102,19 +102,20 @@ function create_storage(base, par, qtl)
     g₀Sex = shuffle([ones(Int8, n₀Sir); zeros(Int8, n₀Dam)])
     g₀Sir = (1:n₀)[g₀Sex .== 1]
     g₀Dam = (1:n₀)[g₀Sex .== 0]
-    
+
     # Generation 2:end
     n₂Fam = max(par.nDam, par.nSire) # in generation 2:end
     # - nID in each of generation 2:end
     n₂Prd, n₂Clg = n₂Fam .* [par.nSib - par.nC7e, par.nC7e]
     
-    # Generation 1: generate similar number of offspring in 2+ generation
+    # Generation 1: generate similar number of offspring as in 2+ generation
     n₁Fam = max(n₀Sir, n₀Dam)   # full sib groups from base
     # - sibship sizes in 1st generation
     n₁P8n, n₁C7e = Int.(ceil.([n₂Prd, n₂Clg]./n₁Fam))
+
     # - total offspring in 1st generation
-    n₁Prd, n₁Clg = [n₁P8n, n₁C7e] .* n₁Fam
-    
+    n₁Prd, n₁Clg = (n₁P8n, n₁C7e) .* n₁Fam
+
     # Overall number of offspring
     nPrd, nClg = [n₁Prd + n₀, n₁Clg] + [n₂Prd, n₂Clg] .* (par.nG8n - 1)
 
