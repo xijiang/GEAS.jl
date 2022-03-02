@@ -102,20 +102,19 @@ function create_storage(base, par, qtl)
     g₀Sex = shuffle([ones(Int8, n₀Sir); zeros(Int8, n₀Dam)])
     g₀Sir = (1:n₀)[g₀Sex .== 1]
     g₀Dam = (1:n₀)[g₀Sex .== 0]
-
+    
     # Generation 2:end
     n₂Fam = max(par.nDam, par.nSire) # in generation 2:end
     # - nID in each of generation 2:end
     n₂Prd, n₂Clg = n₂Fam .* [par.nSib - par.nC7e, par.nC7e]
     
-    # Generation 1: generate similar number of offspring as in 2+ generation
+    # Generation 1: generate similar number of offspring in 2+ generation
     n₁Fam = max(n₀Sir, n₀Dam)   # full sib groups from base
     # - sibship sizes in 1st generation
     n₁P8n, n₁C7e = Int.(ceil.([n₂Prd, n₂Clg]./n₁Fam))
-
     # - total offspring in 1st generation
-    n₁Prd, n₁Clg = (n₁P8n, n₁C7e) .* n₁Fam
-
+    n₁Prd, n₁Clg = [n₁P8n, n₁C7e] .* n₁Fam
+    
     # Overall number of offspring
     nPrd, nClg = [n₁Prd + n₀, n₁Clg] + [n₂Prd, n₂Clg] .* (par.nG8n - 1)
 
@@ -213,7 +212,7 @@ function select_nuclear(df, nSire, nDam)
 end
 
 """
-    function calc_idx(ped, snp, cur, lqtl, par, twop)
+    function calc_idx(ped, snp, cur, lqtl, par)
 ---
 Calculate selection index SNP and phenotype information up to current generation.
 Store the results in `cur[:, :val]`.
@@ -222,7 +221,7 @@ Store the results in `cur[:, :val]`.
 - If `lqtl` is not empty, then its specified loci are fixed as fixed effects
 - `twop` are those in the first generation, which were stored in `base`.
 """
-function calc_idx(ped, snp, cur, Q, par, twop)
+function calc_idx(ped, snp, cur, Q, par)
     # About the production trait
     til = last(cur).id
     fra = par.u38y ?
@@ -232,7 +231,6 @@ function calc_idx(ped, snp, cur, Q, par, twop)
     mp, sp = snp_blup(gp,
                       ped.prd[:, :p7e][fra+1:til],
                       par.h²[1],
-                      twop,
                       dd = par.dd)
 
     # About the binary trait
@@ -285,7 +283,7 @@ function breeding(ped, snp, base, qtl, par)
     prd, clg = groupby(ped.prd, :g8n), groupby(ped.clg, :g8n) # shorthands
     # note, there are `nG8n+1` generations, including the base.
     @info "Evaluating generation 1"
-    calc_idx(ped, snp, prd[2], Q, par, snp.twop) # evaluation of generation one
+    calc_idx(ped, snp, prd[2], Q, par) # evaluation of generation one
     for ig in 2:par.nG8n
         @info "Breeding generation $ig of $(par.nG8n)"
         sires, dams = select_nuclear(prd[ig], par.nSire, par.nDam)
@@ -296,7 +294,7 @@ function breeding(ped, snp, base, qtl, par)
         assign_pama(clg[ig], sires, dams, par.nC7e)
         gene_drop(clg[ig], base.r, snp.prd, snp.clg, qtl[2], par.h²[2])
         par.b4y && toBinary(clg[ig], par.p17h) # convert to binary phenotype
-        calc_idx(ped, snp, prd[ig+1], Q, par, snp.twop)
+        calc_idx(ped, snp, prd[ig+1], Q, par)
     end
 end
 
@@ -322,8 +320,7 @@ function simple_breeding(ped, snp, base, qtl, par, op)
             til = last(cur).id
             gp = alleles2gt(view(snp.prd, :, 2fra+1:2til))
             mp, sp = snp_blup(gp, ped.prd[:, :p7e][fra+1:til],
-                              par.h²[1], base.twop, dd = par.dd)
-
+                              par.h²[1], dd = par.dd)
             tid = size(gp)[2]
             cgp = view(gp, :, tid-nrow(cur)+1:tid) # genotypes of current g8n
             cur[:, :val] = cgp'sp

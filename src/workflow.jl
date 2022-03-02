@@ -71,7 +71,5 @@ function if_normalization()
     esnp = lhs \ rhs
     ebv = gt * esnp[2:end]
     cor(ebv, tbv), norm(ebv - tbv)
-
-    # with normalization
-    
+    # returns usually close to (1, 0), meaning not necessary to normalize genotypes.
 end

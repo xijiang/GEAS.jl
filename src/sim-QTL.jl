@@ -1,5 +1,5 @@
 """
-    function sim_QTL(base, nqtl...; d = Laplace(), , ϵ = 1e-5)
+    function sim_QTL(base, nqtl...; d = Laplace())
 ---
 Given the population, a dictionary of SNP loci and SNP genotypes,
 this function tries to:
@@ -9,15 +9,14 @@ this function tries to:
    - an alternative is `Γ(0.4, 1)`,
    - or from `N(0, 1)`, if `shape < 0`
    - effects are scaled such that σₐ² of base = 1.
-3. this funciton tries to make the base population has a mean 0, and var(tbv) = 1.
-   - abs(mean(tbv)) < ϵ.
+3. the potential, or the upper limit of the population, or the ideal population is also calculated.
 
 Note:
 - A problem with `Γ(0.4, 1)` is that two traits will have an expectation correlation ~0.2.
 - Randomly flip the sign of the effects may be a solution.
 """
 function sim_QTL(base, nqtl...; d = Laplace(), ϵ = 1e-5)
-    @debug "Sample QTL locations and effects" "With the QTL effects, mean(BV) ≈ 0, var(BV) ≈ 1"
+    @debug "Sample QTL locations and effects" "With the QTL effects, mean ≈ 0, var(BV) ≈ 1"
     pos = base.pos
     GT  = base.hap              # short hands
     tsnp = size(pos)[1]
@@ -27,7 +26,7 @@ function sim_QTL(base, nqtl...; d = Laplace(), ϵ = 1e-5)
     for n in nqtl
         loci = sort(randperm(tsnp)[1:n])
         Q  = qtl_gt(GT, loci)
-        a = rand(d, n) .* rand([-1, 1], n)
+        a = rand(d, n) .* rand([-1, 1], n) # random effect directions
         y = Q'a
         m, s = mean(y), std(y)
         while abs(m) > ϵ || abs(s-1) > ϵ
@@ -84,12 +83,6 @@ function sim_pt_QTL(base, nqtl, d)
         m = mean(y)             # base population mean
         v = var(y)
         a ./= sqrt(v)
-        while abs(m) > ϵ
-            a .-= 2m/n
-            y = Q'a
-            m = mean(y)
-        end
-        t = 2sum(a[a.>0]) - m   # ideal ID expectation - base
         push!(qinfo, QTL(lqtl, a))
     end
     qinfo

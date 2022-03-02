@@ -40,6 +40,7 @@ function hap2gt(hap; GBLUP = false)
 end
 
 """
+    function breeding_value(snp, qtl)
 Given SNP genotypes `snp`, and QTL loci and effects in `qtl`, this function return
 true breeding values of each individual.
 """
