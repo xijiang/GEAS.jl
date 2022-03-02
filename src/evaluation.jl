@@ -66,12 +66,14 @@ function snp_blup(g, p, h²; Q = [], F = [], dd=0)
     # -- lower right block
     lr = view(lhs, nf+1:sl, nf+1:sl)
     matmul!(lr, g, g')
-    lr += λ * I
+    for i in nf+1:sl
+        lhs[i, i] += λ
+    end
     # -- if some QTL as fixed effects
     if length(Q) > 0
         l = Q .+ nf
         for x in l
-            tmp[x, x] -= λ
+            lhs[x, x] -= λ
         end
     end
     

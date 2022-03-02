@@ -281,6 +281,7 @@ function breeding(ped, snp, base, qtl, par)
     rkq = rank_QTL(base.hap, qtl[2]) # QTL for binary trait ranking in ↓ order
     Q = par.fix ? abs.(rkq[1:par.nK3n]) : Int[]
     prd, clg = groupby(ped.prd, :g8n), groupby(ped.clg, :g8n) # shorthands
+
     # note, there are `nG8n+1` generations, including the base.
     @info "Evaluating generation 1"
     calc_idx(ped, snp, prd[2], Q, par) # evaluation of generation one
