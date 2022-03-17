@@ -10,12 +10,12 @@ const prj_dir = begin
     t[1:l]
 end
 
-const dat_dir = joinpath(prj_dir, "dat")
-const bin_dir = joinpath(prj_dir, "bin")
-const plink   = joinpath(bin_dir, "plink")
-const beagle  = joinpath(bin_dir, "beagle.jar")
-const macs    = joinpath(bin_dir, "macs")
-const qmsim   = joinpath(bin_dir, "qmsim")
+dat_dir = joinpath(prj_dir, "dat")
+bin_dir = joinpath(prj_dir, "bin")
+plink   = joinpath(bin_dir, "plink")
+beagle  = joinpath(bin_dir, "beagle.jar")
+macs    = joinpath(bin_dir, "macs")
+qmsim   = joinpath(bin_dir, "qmsim")
 
 include("breeding.jl")
 include("b-Update.jl")
@@ -32,6 +32,8 @@ include("summarize.jl")
 include("workflow.jl")
 include("check-par.jl")
 include("utils.jl")
+include("gwas.jl")
+include("bayes-alphabet.jl")
 
 copyright()
 

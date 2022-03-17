@@ -156,5 +156,9 @@ for MvNormally distributed pleiotropic QTL.
 Then one can simply call, e.g.,  `one_repeat(500, 10, "base.jld2")` to have one repeat of simulation.
 
 On a mainframe computer, you can simultaneously run many instances of such `one_repeats`. 
-Each repeat takes one or two hours.
-With enough computation resources, you may obtain hundreds of repeats with one or two hours.
+For one repeat of above scenarios, which contains 3 different breeding schemes,
+it takes about 150 miutes with 12 threads of an AMD 3900x to finish.
+With enough computation resources, you may obtain hundreds of repeats in similar time.
+
+## Citing
+- Xijiang Yu, Binyam S. Dagnachew, and Theo HE Meuwissen, A simulator to evaluate gene editing assested slelection program. WCGALP 2022, Rotterdam.

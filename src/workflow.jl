@@ -73,3 +73,16 @@ function if_normalization()
     cor(ebv, tbv), norm(ebv - tbv)
     # returns usually close to (1, 0), meaning not necessary to normalize genotypes.
 end
+
+
+function tst_gwas()
+    # Simulation with the base population
+    nqtl = 30
+    @load "dat/run/base.jld2" base
+    base
+    h² = .75
+    qtl = sim_QTL(base, 30)[1]
+    _, pt = phenotype(base.hap, qtl, h²)
+    gt = hap2gt(base.hap)
+    gt, pt, qtl
+end
