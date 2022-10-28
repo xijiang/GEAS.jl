@@ -1,5 +1,9 @@
 # GEAS.jl
 
+## Notice
+
+`GEAS.jl` is now migrating to `QTL.jl`.
+
 ## Installation
 ```julia
 ]

@@ -1,4 +1,38 @@
 """
+    function qsdgp(nid, nlc, μ, σ, ϵ; maf = .2)
+`Q`uick (and `d`irty) `s`imulation of (012) `g`enotypes and `p`henotypes.
+The results are to evaluate SNP effects, so genotypes are ID majored,
+as there will be a `z'z` for `lhs`.
+This function also simulate an intercept for individuals.
+Allele frequencies were firstly sampled from `U(maf, 1 - maf)`.
+Genotypes `T` were then sampled from `Binomial(2, pᵢ)`.
+In the end, it returns a `(n_Loci + 1) × n_ID X` matrix, 
+an observation vector `y = X'b + e` (`e ~ MVN(0, Iϵ)`), 
+and true values `b` from `MVN(0, Iσ)`.
+For simplicity, they are all of `Float64`.
+The number of QTL are also affected by the QTL probability `pr` of simulated SNP.
+"""
+function qsdgp(nid, nlc, μ, σ, ϵ; maf = .2, pr = 1.)
+    # uniform distributed allele freq, can be U-shaped
+    X = ones(Int8, nlc+1, nid)
+    for i in 2:nlc+1
+        p = rand(Uniform(maf, 1 - maf)) # p~Uniform(maf, 1-maf)
+        rand!(Binomial(2, p), view(X, i, :))
+    end
+
+    b = rand(Normal(μ, σ), nlc + 1)
+    q = rand(Binomial(1, pr), nlc) # which ones are QTL
+    @info "$(sum(q)) out of $nlc simulated SNP are QTL"
+    b .*= [1; q]
+    tbv = zeros(nid)
+    matmul!(tbv, X', b)         # true breeding values
+    vg = var(tbv)
+    y = tbv + rand(Normal(0., ϵ), nid)
+    vp = var(y)
+    X, y, b, vg, vp
+end
+
+"""
     function read_macs(file)
 ---
 Read genotypes and physical positions from simulation results of `macs`.
